@@ -6,7 +6,18 @@
 
 **Architecture:** Layered Python package — pure computation engine (no I/O), JSON data access layer, parsers for ETrade CSV and Fidelity PDF, Click CLI as thin glue. All arithmetic uses `Decimal`. Designed so a web UI can replace the CLI without touching engine/db layers.
 
-**Tech Stack:** Python 3.12+, `click` (CLI), `pdfplumber` (PDF parsing), `pytest` (testing), `Decimal` (arithmetic), JSON (persistence)
+**Tech Stack:** Python 3.12+, `click` (CLI), `pdfplumber` (PDF parsing), `pytest` + `pytest-cov` (testing), `Decimal` (arithmetic), JSON (persistence)
+
+**Coverage Requirement:** Every task must achieve 90%+ test coverage on the files it creates or modifies. Run `pytest --cov=fbtc_taxgrinder --cov-report=term-missing` after each task to verify. Add tests for any uncovered branches before committing.
+
+**Quality Standards:**
+- All functions must have type annotations (parameters and return types)
+- All public functions must have docstrings explaining purpose, args, and return values
+- No `# type: ignore` or `noqa` without a comment explaining why
+- All Decimal values constructed from strings, never from floats
+- No bare `except:` — always catch specific exceptions
+- Imports sorted: stdlib, third-party, local (enforced by convention)
+- No dead code, no commented-out code, no TODO without a linked issue
 
 **Spec:** `docs/superpowers/specs/2026-03-17-fbtc-taxgrinder-design.md`
 
@@ -95,7 +106,7 @@ fbtc-taxgrinder = "fbtc_taxgrinder.cli.commands:cli"
 testpaths = ["tests"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0"]
 ```
 
 - [ ] **Step 2: Create empty __init__.py files and main.py**
@@ -340,7 +351,12 @@ class YearResult:
 Run: `pytest tests/test_models.py -v`
 Expected: All PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Check coverage**
+
+Run: `pytest tests/test_models.py --cov=fbtc_taxgrinder.models --cov-report=term-missing --cov-fail-under=90`
+Expected: 90%+ coverage. If any uncovered lines, add tests before committing.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add fbtc_taxgrinder/models.py tests/test_models.py
@@ -792,7 +808,12 @@ def load(data_dir: Path, year: int) -> YearResult | None:
 Run: `pytest tests/test_db.py -v`
 Expected: All PASS
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 8: Check coverage**
+
+Run: `pytest tests/test_db.py --cov=fbtc_taxgrinder.db --cov-report=term-missing --cov-fail-under=90`
+Expected: 90%+ coverage on all db modules. Add tests for any uncovered branches.
+
+- [ ] **Step 9: Commit**
 
 ```bash
 git add fbtc_taxgrinder/db/ tests/conftest.py tests/test_db.py
@@ -961,7 +982,12 @@ def compute_period(
 Run: `pytest tests/test_compute.py -v`
 Expected: All PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Check coverage**
+
+Run: `pytest tests/test_compute.py --cov=fbtc_taxgrinder.engine.compute --cov-report=term-missing --cov-fail-under=90`
+Expected: 90%+ coverage. Add tests for uncovered branches.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add fbtc_taxgrinder/engine/compute.py tests/test_compute.py
@@ -1464,7 +1490,12 @@ def compute_lot_month(inp: LotMonthInput) -> LotMonthOutput | None:
 Run: `pytest tests/test_proration.py tests/test_sells.py tests/test_compute.py -v`
 Expected: All PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Check coverage**
+
+Run: `pytest tests/test_proration.py tests/test_sells.py tests/test_compute.py --cov=fbtc_taxgrinder.engine.compute --cov-report=term-missing --cov-fail-under=90`
+Expected: 90%+ coverage on compute module including sell paths. Add tests for uncovered branches.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add fbtc_taxgrinder/engine/compute.py tests/test_proration.py tests/test_sells.py
@@ -1656,7 +1687,12 @@ def compute_year(
 Run: `pytest tests/test_compute.py tests/test_proration.py tests/test_sells.py -v`
 Expected: All PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Check coverage**
+
+Run: `pytest tests/test_compute.py tests/test_proration.py tests/test_sells.py --cov=fbtc_taxgrinder.engine.compute --cov-report=term-missing --cov-fail-under=90`
+Expected: 90%+ coverage. Add tests for uncovered branches.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add fbtc_taxgrinder/engine/compute.py tests/test_compute.py
@@ -1778,7 +1814,12 @@ def match_sell_to_lot(
 Run: `pytest tests/test_matching.py -v`
 Expected: All PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Check coverage**
+
+Run: `pytest tests/test_matching.py --cov=fbtc_taxgrinder.engine.matching --cov-report=term-missing --cov-fail-under=90`
+Expected: 90%+ coverage. Add tests for uncovered branches.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add fbtc_taxgrinder/engine/matching.py tests/test_matching.py
@@ -1963,7 +2004,12 @@ def parse_fidelity_pdf(source: str) -> YearProceeds:
 Run: `pytest tests/test_fidelity_parser.py -v`
 Expected: All PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Check coverage**
+
+Run: `pytest tests/test_fidelity_parser.py --cov=fbtc_taxgrinder.parsers.fidelity_pdf --cov-report=term-missing --cov-fail-under=90`
+Expected: 90%+ coverage. The `parse_fidelity_pdf` function itself touches I/O (URL download, pdfplumber) which is harder to unit-test — but `parse_proceeds_line` should be fully covered. Add tests for edge cases in line parsing if needed.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add fbtc_taxgrinder/parsers/fidelity_pdf.py tests/test_fidelity_parser.py
@@ -2134,7 +2180,12 @@ def parse_etrade_csv(file_path: str) -> dict:
 Run: `pytest tests/test_etrade_parser.py -v`
 Expected: All PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Check coverage**
+
+Run: `pytest tests/test_etrade_parser.py --cov=fbtc_taxgrinder.parsers.etrade --cov-report=term-missing --cov-fail-under=90`
+Expected: 90%+ coverage. Add tests for uncovered branches.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add fbtc_taxgrinder/parsers/etrade.py tests/test_etrade_parser.py
@@ -2296,7 +2347,12 @@ def export_year_csv(year_result: YearResult, output_dir: Path) -> None:
 Run: `pytest tests/test_csv_export.py -v`
 Expected: All PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Check coverage**
+
+Run: `pytest tests/test_csv_export.py --cov=fbtc_taxgrinder.export --cov-report=term-missing --cov-fail-under=90`
+Expected: 90%+ coverage. Add tests for uncovered branches.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add fbtc_taxgrinder/export/csv_export.py tests/test_csv_export.py
@@ -2639,7 +2695,12 @@ def status(ctx):
 Run: `pytest tests/test_cli.py -v`
 Expected: All PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Check coverage**
+
+Run: `pytest tests/test_cli.py --cov=fbtc_taxgrinder.cli --cov-report=term-missing --cov-fail-under=90`
+Expected: 90%+ coverage. Add tests for uncovered CLI paths (error cases, edge cases).
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add fbtc_taxgrinder/cli/commands.py tests/test_cli.py
@@ -2960,20 +3021,39 @@ git commit -m "test: add end-to-end CLI integration test"
 
 ---
 
-## Task 14: Run Full Test Suite and Fix Any Issues
+## Task 14: Run Full Test Suite, Coverage Gate, and Code Quality
 
 - [ ] **Step 1: Run all tests**
 
 Run: `pytest tests/ -v`
 Expected: All PASS
 
-- [ ] **Step 2: Fix any failures**
+- [ ] **Step 2: Run full coverage report**
 
-Debug and fix. Re-run until green.
+Run: `pytest tests/ --cov=fbtc_taxgrinder --cov-report=term-missing --cov-fail-under=90`
+Expected: 90%+ overall coverage. If below, identify uncovered lines and add tests.
 
-- [ ] **Step 3: Final commit**
+- [ ] **Step 3: Check for any uncovered error paths**
+
+Review the `term-missing` output. Common gaps:
+- Error handling in CLI commands (missing file, missing proceeds, chain validation errors)
+- Edge cases in parsers (malformed input)
+- Fully liquidated lot behavior in compute_year
+
+Add targeted tests for any uncovered lines.
+
+- [ ] **Step 4: Run type checking (optional but recommended)**
+
+Run: `python -m py_compile fbtc_taxgrinder/models.py fbtc_taxgrinder/engine/compute.py fbtc_taxgrinder/engine/matching.py fbtc_taxgrinder/db/lots.py fbtc_taxgrinder/db/proceeds.py fbtc_taxgrinder/db/results.py fbtc_taxgrinder/db/state.py fbtc_taxgrinder/parsers/etrade.py fbtc_taxgrinder/parsers/fidelity_pdf.py fbtc_taxgrinder/export/csv_export.py fbtc_taxgrinder/cli/commands.py`
+Expected: No syntax errors.
+
+- [ ] **Step 5: Fix any failures**
+
+Debug and fix. Re-run until green with 90%+ coverage.
+
+- [ ] **Step 6: Final commit**
 
 ```bash
 git add -A
-git commit -m "fix: resolve any remaining test issues"
+git commit -m "fix: resolve remaining test issues, achieve 90%+ coverage"
 ```
