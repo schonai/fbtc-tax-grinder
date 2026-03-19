@@ -49,10 +49,10 @@ fbtc-taxgrinder import-trades --file path/to/etrade-trades.csv
 fbtc-taxgrinder compute --year 2025
 ```
 
-Use `--force` to recompute if results already exist. Two mutually exclusive flags control how the first (partial) month of a lot is handled:
+Use `--force` to recompute if results already exist. Two mutually exclusive flags control how buy and sell months are handled:
 
-- `--full-month-holding` (default) — treats the purchase month as a full holding period, matching Fidelity's 1099 values.
-- `--prorate-first-month` — prorates based on actual days held, as described in the WHFIT tax reporting document example.
+- `--full-month` (default) — uses full-month granularity for buy and sell months, matching Fidelity's 1099 values.
+- `--prorate` — prorates buy and sell months by actual days held, as described in the WHFIT tax reporting document example.
 
 ### 4. Export results
 
@@ -87,11 +87,11 @@ The tool follows Fidelity's 6-step WHFIT calculation for each lot in each month:
 
 Year-end states chain into the following year, enabling multi-year tracking.
 
-## Note on first-month holding period
+## Note on holding period calculation
 
-Fidelity's WHFIT tax reporting document shows an example where the first month of a lot is prorated by actual days held (e.g., 21 out of 30 days for a purchase on 9/9). However, comparing against actual 1099 values shows that Fidelity uses the full month as the holding period regardless of purchase date. The difference is small per lot but compounds across lots and months.
+Fidelity's WHFIT tax reporting document shows an example where buy and sell months are prorated by actual days held (e.g., 21 out of 30 days for a purchase on 9/9, or phase-splitting around a mid-month sell). However, comparing against actual 1099 values shows that Fidelity uses full-month granularity: shares held at month-end get the full month's expense regardless of buy date, and shares sold before month-end get zero expense for that month.
 
-This tool defaults to full-month holding (`--full-month-holding`) to match the 1099. The `--prorate-first-month` flag is available to use the documented proration method instead.
+This tool defaults to full-month granularity (`--full-month`) to match the 1099. The `--prorate` flag is available to use the documented proration method instead.
 
 ## Disclaimer
 

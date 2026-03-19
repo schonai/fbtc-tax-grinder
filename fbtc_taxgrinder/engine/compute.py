@@ -183,20 +183,26 @@ def compute_lot_month(inp: LotMonthInput, *, holding_mode: HoldingMode = Holding
             new_state=LotState(adj_btc=pr.adj_btc, adj_basis=pr.adj_basis, shares=shares),
         )
 
-    # Complex case: sells split the month into phases
-    current_start = period_start
+    if holding_mode is HoldingMode.FULL_MONTH:
+        # Dispositions first, then expense only on surviving shares (full month)
+        for event in sell_events:
+            disposed_btc = adj_btc * (event.shares / shares)
+            disposed_basis = adj_basis * (event.shares / shares)
+            dispositions.append(Disposition(
+                lot_id=inp.lot.id, disposition_id=event.disposition_id,
+                date_sold=event.date, shares_sold=event.shares,
+                proceeds=event.proceeds, disposed_btc=disposed_btc,
+                disposed_basis=disposed_basis,
+                gain_loss=event.proceeds - disposed_basis,
+            ))
+            adj_btc -= disposed_btc
+            adj_basis -= disposed_basis
+            shares -= event.shares
 
-    for event in sell_events:
-        # Phase 1: Pre-sell expense computation
-        pre_days = Decimal(str((event.date - current_start).days))
-        if pre_days > 0:
+        if shares > 0:
             pr = compute_period(
-                days_held=pre_days,
-                days_in_month=days_in_month,
-                shares=shares,
-                adj_btc=adj_btc,
-                adj_basis=adj_basis,
-    
+                days_held=full_days_held, days_in_month=days_in_month,
+                shares=shares, adj_btc=adj_btc, adj_basis=adj_basis,
                 monthly_btc_sold_per_share=inp.month_proceeds.btc_sold_per_share,
                 monthly_proceeds_per_share_usd=inp.month_proceeds.proceeds_per_share_usd,
             )
@@ -206,48 +212,54 @@ def compute_lot_month(inp: LotMonthInput, *, holding_mode: HoldingMode = Holding
             total_gain_loss += pr.gain_loss
             adj_btc = pr.adj_btc
             adj_basis = pr.adj_basis
+    else:
+        # PRORATE: split month into phases around each sell
+        current_start = period_start
+        for event in sell_events:
+            pre_days = Decimal(str((event.date - current_start).days))
+            if pre_days > 0:
+                pr = compute_period(
+                    days_held=pre_days, days_in_month=days_in_month,
+                    shares=shares, adj_btc=adj_btc, adj_basis=adj_basis,
+                    monthly_btc_sold_per_share=inp.month_proceeds.btc_sold_per_share,
+                    monthly_proceeds_per_share_usd=inp.month_proceeds.proceeds_per_share_usd,
+                )
+                total_btc_sold += pr.total_btc_sold
+                total_cost_basis += pr.cost_basis_of_sold
+                total_expense += pr.total_expense
+                total_gain_loss += pr.gain_loss
+                adj_btc = pr.adj_btc
+                adj_basis = pr.adj_basis
 
-        # Phase 2: Disposition
-        disposed_btc = adj_btc * (event.shares / shares)
-        disposed_basis = adj_basis * (event.shares / shares)
-        disposition_gain_loss = event.proceeds - disposed_basis
+            disposed_btc = adj_btc * (event.shares / shares)
+            disposed_basis = adj_basis * (event.shares / shares)
+            dispositions.append(Disposition(
+                lot_id=inp.lot.id, disposition_id=event.disposition_id,
+                date_sold=event.date, shares_sold=event.shares,
+                proceeds=event.proceeds, disposed_btc=disposed_btc,
+                disposed_basis=disposed_basis,
+                gain_loss=event.proceeds - disposed_basis,
+            ))
+            adj_btc -= disposed_btc
+            adj_basis -= disposed_basis
+            shares -= event.shares
+            current_start = event.date
 
-        dispositions.append(Disposition(
-            lot_id=inp.lot.id,
-            disposition_id=event.disposition_id,
-            date_sold=event.date,
-            shares_sold=event.shares,
-            proceeds=event.proceeds,
-            disposed_btc=disposed_btc,
-            disposed_basis=disposed_basis,
-            gain_loss=disposition_gain_loss,
-        ))
-
-        adj_btc -= disposed_btc
-        adj_basis -= disposed_basis
-        shares -= event.shares
-        current_start = event.date
-
-    # Phase 3: Post-sell expense computation (if shares remain)
-    if shares > 0:
-        post_days = Decimal(str((month_end - current_start).days))
-        if post_days > 0:
-            pr = compute_period(
-                days_held=post_days,
-                days_in_month=days_in_month,
-                shares=shares,
-                adj_btc=adj_btc,
-                adj_basis=adj_basis,
-    
-                monthly_btc_sold_per_share=inp.month_proceeds.btc_sold_per_share,
-                monthly_proceeds_per_share_usd=inp.month_proceeds.proceeds_per_share_usd,
-            )
-            total_btc_sold += pr.total_btc_sold
-            total_cost_basis += pr.cost_basis_of_sold
-            total_expense += pr.total_expense
-            total_gain_loss += pr.gain_loss
-            adj_btc = pr.adj_btc
-            adj_basis = pr.adj_basis
+        if shares > 0:
+            post_days = Decimal(str((month_end - current_start).days))
+            if post_days > 0:
+                pr = compute_period(
+                    days_held=post_days, days_in_month=days_in_month,
+                    shares=shares, adj_btc=adj_btc, adj_basis=adj_basis,
+                    monthly_btc_sold_per_share=inp.month_proceeds.btc_sold_per_share,
+                    monthly_proceeds_per_share_usd=inp.month_proceeds.proceeds_per_share_usd,
+                )
+                total_btc_sold += pr.total_btc_sold
+                total_cost_basis += pr.cost_basis_of_sold
+                total_expense += pr.total_expense
+                total_gain_loss += pr.gain_loss
+                adj_btc = pr.adj_btc
+                adj_basis = pr.adj_basis
 
     return LotMonthOutput(
         month_result=MonthResult(

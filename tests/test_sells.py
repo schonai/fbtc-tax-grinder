@@ -1,7 +1,7 @@
 from decimal import Decimal
 from datetime import date
 from fbtc_taxgrinder.models import Lot, LotEvent, MonthProceeds
-from fbtc_taxgrinder.engine.compute import compute_lot_month, LotMonthInput
+from fbtc_taxgrinder.engine.compute import HoldingMode, compute_lot_month, LotMonthInput
 
 
 def test_sell_mid_month():
@@ -227,6 +227,140 @@ def test_sell_in_purchase_month():
     assert result.month_result.days_held == Decimal("31")
 
 
+def test_sell_expense_only_on_surviving_shares():
+    """Expense is computed only on shares remaining after all sells, for the full month."""
+    lot = Lot(
+        id="lot-x", purchase_date=date(2024, 1, 25),
+        original_shares=Decimal("100"), price_per_share=Decimal("50.00"),
+        total_cost=Decimal("5000.00"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="test.csv",
+        events=[
+            LotEvent(
+                type="sell", date=date(2025, 3, 10),
+                shares=Decimal("60"), price_per_share=Decimal("60.00"),
+                proceeds=Decimal("3600.00"), disposition_id="lot-x-sell-1",
+            ),
+        ],
+    )
+    adj_btc = Decimal("0.08700000")
+    adj_basis = Decimal("4950.00")
+    proceeds_per_share = Decimal("0.01509769")
+
+    result = compute_lot_month(LotMonthInput(
+        lot=lot, year=2025, month=3,
+        adj_btc=adj_btc,
+        adj_basis=adj_basis,
+        shares=Decimal("100"),
+        month_proceeds=MonthProceeds(
+            btc_sold_per_share=Decimal("0.00000018"),
+            proceeds_per_share_usd=proceeds_per_share,
+        ),
+    ))
+    assert result is not None
+    # 40 surviving shares get full month expense
+    assert result.month_result.total_expense == Decimal("40") * proceeds_per_share
+
+
+def test_full_liquidation_zero_expense():
+    """Selling all shares means zero expense for the month."""
+    lot = Lot(
+        id="lot-x", purchase_date=date(2024, 1, 25),
+        original_shares=Decimal("10"), price_per_share=Decimal("50.00"),
+        total_cost=Decimal("500.00"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="test.csv",
+        events=[
+            LotEvent(
+                type="sell", date=date(2025, 3, 15),
+                shares=Decimal("10"), price_per_share=Decimal("60.00"),
+                proceeds=Decimal("600.00"), disposition_id="lot-x-sell-1",
+            ),
+        ],
+    )
+    result = compute_lot_month(LotMonthInput(
+        lot=lot, year=2025, month=3,
+        adj_btc=Decimal("0.00870000"),
+        adj_basis=Decimal("498.00"),
+        shares=Decimal("10"),
+        month_proceeds=MonthProceeds(
+            btc_sold_per_share=Decimal("0.00000018"),
+            proceeds_per_share_usd=Decimal("0.01509769"),
+        ),
+    ))
+    assert result is not None
+    assert result.month_result.total_expense == Decimal("0")
+    assert result.month_result.gain_loss == Decimal("0")
+    assert result.month_result.total_btc_sold == Decimal("0")
+
+
+def test_sell_expense_only_on_surviving_shares():
+    """Expense is computed only on shares remaining after all sells, for the full month."""
+    lot = Lot(
+        id="lot-x", purchase_date=date(2024, 1, 25),
+        original_shares=Decimal("100"), price_per_share=Decimal("50.00"),
+        total_cost=Decimal("5000.00"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="test.csv",
+        events=[
+            LotEvent(
+                type="sell", date=date(2025, 3, 10),
+                shares=Decimal("60"), price_per_share=Decimal("60.00"),
+                proceeds=Decimal("3600.00"), disposition_id="lot-x-sell-1",
+            ),
+        ],
+    )
+    adj_btc = Decimal("0.08700000")
+    adj_basis = Decimal("4950.00")
+    proceeds_per_share = Decimal("0.01509769")
+
+    result = compute_lot_month(LotMonthInput(
+        lot=lot, year=2025, month=3,
+        adj_btc=adj_btc,
+        adj_basis=adj_basis,
+        shares=Decimal("100"),
+        month_proceeds=MonthProceeds(
+            btc_sold_per_share=Decimal("0.00000018"),
+            proceeds_per_share_usd=proceeds_per_share,
+        ),
+    ))
+    assert result is not None
+    # 40 surviving shares get full month expense
+    assert result.month_result.total_expense == Decimal("40") * proceeds_per_share
+
+
+def test_full_liquidation_zero_expense():
+    """Selling all shares means zero expense for the month."""
+    lot = Lot(
+        id="lot-x", purchase_date=date(2024, 1, 25),
+        original_shares=Decimal("10"), price_per_share=Decimal("50.00"),
+        total_cost=Decimal("500.00"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="test.csv",
+        events=[
+            LotEvent(
+                type="sell", date=date(2025, 3, 15),
+                shares=Decimal("10"), price_per_share=Decimal("60.00"),
+                proceeds=Decimal("600.00"), disposition_id="lot-x-sell-1",
+            ),
+        ],
+    )
+    result = compute_lot_month(LotMonthInput(
+        lot=lot, year=2025, month=3,
+        adj_btc=Decimal("0.00870000"),
+        adj_basis=Decimal("498.00"),
+        shares=Decimal("10"),
+        month_proceeds=MonthProceeds(
+            btc_sold_per_share=Decimal("0.00000018"),
+            proceeds_per_share_usd=Decimal("0.01509769"),
+        ),
+    ))
+    assert result is not None
+    assert result.month_result.total_expense == Decimal("0")
+    assert result.month_result.gain_loss == Decimal("0")
+    assert result.month_result.total_btc_sold == Decimal("0")
+
+
 def test_sell_events_from_other_months_ignored():
     """Sell events in different months should not affect this month."""
     lot = Lot(
@@ -391,3 +525,48 @@ def test_full_liquidation_zeroes_btc_and_basis():
     assert result.new_state.shares == Decimal("0")
     assert result.new_state.adj_btc == Decimal("0")
     assert result.new_state.adj_basis == Decimal("0")
+
+
+def test_prorate_sell_month_phases():
+    """PRORATE mode splits sell month into pre-sell and post-sell expense phases."""
+    lot = Lot(
+        id="lot-x", purchase_date=date(2024, 1, 25),
+        original_shares=Decimal("100"), price_per_share=Decimal("50.00"),
+        total_cost=Decimal("5000.00"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="test.csv",
+        events=[
+            LotEvent(
+                type="sell", date=date(2025, 3, 16),
+                shares=Decimal("60"), price_per_share=Decimal("60.00"),
+                proceeds=Decimal("3600.00"), disposition_id="lot-x-sell-1",
+            ),
+        ],
+    )
+    proceeds_per_share = Decimal("0.01509769")
+    result = compute_lot_month(LotMonthInput(
+        lot=lot, year=2025, month=3,
+        adj_btc=Decimal("0.08700000"),
+        adj_basis=Decimal("4950.00"),
+        shares=Decimal("100"),
+        month_proceeds=MonthProceeds(
+            btc_sold_per_share=Decimal("0.00000018"),
+            proceeds_per_share_usd=proceeds_per_share,
+        ),
+    ), holding_mode=HoldingMode.PRORATE)
+    assert result is not None
+    assert len(result.dispositions) == 1
+    assert result.new_state.shares == Decimal("40")
+    # Pre-sell: 15/31 * 100 shares + Post-sell: 15/31 * 40 shares
+    # Total expense > what FULL_MONTH would give (full month on 40 shares)
+    full_result = compute_lot_month(LotMonthInput(
+        lot=lot, year=2025, month=3,
+        adj_btc=Decimal("0.08700000"),
+        adj_basis=Decimal("4950.00"),
+        shares=Decimal("100"),
+        month_proceeds=MonthProceeds(
+            btc_sold_per_share=Decimal("0.00000018"),
+            proceeds_per_share_usd=proceeds_per_share,
+        ),
+    ))
+    assert result.month_result.total_expense > full_result.month_result.total_expense

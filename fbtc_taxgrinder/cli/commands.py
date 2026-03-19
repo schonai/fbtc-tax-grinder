@@ -166,17 +166,21 @@ def import_trades(ctx: click.Context, file_path: str) -> None:
 @cli.command()
 @click.option("--year", required=True, type=int, help="Tax year to compute.")
 @click.option("--force", is_flag=True, help="Recompute even if results exist.")
-@click.option("--full-month-holding", "holding_mode", flag_value=HoldingMode.FULL_MONTH,
-              default=True,
-              help="Use the full month as holding period for lots purchased mid-month. "
+@click.option("--full-month", is_flag=True, default=False,
+              help="Use full-month granularity for buy and sell months. "
               "This is the default and matches Fidelity's 1099 calculations.")
-@click.option("--prorate-first-month", "holding_mode", flag_value=HoldingMode.PRORATE,
-              help="Prorate the first month based on actual days held. "
-              "This matches the example in Fidelity's WHFIT tax reporting document "
+@click.option("--prorate", is_flag=True, default=False,
+              help="Prorate buy and sell months by actual days held. "
+              "This matches Fidelity's WHFIT document example "
               "but produces values that differ from the 1099.")
 @click.pass_context
-def compute(ctx: click.Context, year: int, force: bool, holding_mode: HoldingMode) -> None:
+def compute(ctx: click.Context, year: int, force: bool,
+            full_month: bool, prorate: bool) -> None:
     """Compute tax lots for a given year."""
+    if full_month and prorate:
+        raise click.UsageError("--full-month and --prorate are mutually exclusive.")
+    holding_mode = HoldingMode.PRORATE if prorate else HoldingMode.FULL_MONTH
+
     dd = _data_dir(ctx)
 
     # Check for existing results
