@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import csv
+from collections import defaultdict
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
+
+CENTS = Decimal("0.01")
 
 from fbtc_taxgrinder.models import YearResult
 
@@ -43,16 +47,34 @@ def export_year_csv(year_result: YearResult, output_dir: Path) -> None:
                 d.disposed_basis, d.gain_loss,
             ])
 
-    # Annual summary
+    # Summary: monthly aggregates + annual total
+    monthly_agg: dict[int, dict[str, Decimal]] = defaultdict(
+        lambda: {"investment_expense": Decimal(0), "cost_basis_of_expense": Decimal(0), "reportable_gain": Decimal(0)}
+    )
+    for results in year_result.lot_results.values():
+        for mr in results:
+            monthly_agg[mr.month]["investment_expense"] += mr.total_expense
+            monthly_agg[mr.month]["cost_basis_of_expense"] += mr.cost_basis_of_sold
+            monthly_agg[mr.month]["reportable_gain"] += mr.gain_loss
+
     summary_path = output_dir / f"{year}_summary.csv"
     with open(summary_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow([
-            "year", "total_investment_expense", "total_reportable_gain",
-            "total_cost_basis_of_expense",
+            "month", "investment_expense", "cost_basis_of_expense",
+            "reportable_gain",
         ])
+        for month in sorted(monthly_agg):
+            agg = monthly_agg[month]
+            writer.writerow([
+                month,
+                agg["investment_expense"].quantize(CENTS, ROUND_HALF_UP),
+                agg["cost_basis_of_expense"].quantize(CENTS, ROUND_HALF_UP),
+                agg["reportable_gain"].quantize(CENTS, ROUND_HALF_UP),
+            ])
         writer.writerow([
-            year, year_result.total_investment_expense,
-            year_result.total_reportable_gain,
-            year_result.total_cost_basis_of_expense,
+            "total",
+            year_result.total_investment_expense.quantize(CENTS, ROUND_HALF_UP),
+            year_result.total_cost_basis_of_expense.quantize(CENTS, ROUND_HALF_UP),
+            year_result.total_reportable_gain.quantize(CENTS, ROUND_HALF_UP),
         ])

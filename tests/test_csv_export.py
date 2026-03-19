@@ -63,5 +63,74 @@ def test_export_creates_three_files(tmp_path):
     with open(summary_path) as f:
         reader = csv.DictReader(f)
         rows = list(reader)
-        assert len(rows) == 1
-        assert rows[0]["total_investment_expense"] == "2.18"
+        assert len(rows) == 2  # 1 monthly row + 1 total row
+        # Monthly row
+        assert rows[0]["month"] == "8"
+        assert rows[0]["investment_expense"] == "2.18"
+        assert rows[0]["cost_basis_of_expense"] == "1.46"
+        assert rows[0]["reportable_gain"] == "0.72"
+        # Total row
+        assert rows[1]["month"] == "total"
+        assert rows[1]["investment_expense"] == "2.18"
+
+
+def test_summary_aggregates_across_lots(tmp_path):
+    """Monthly summary rows sum values across all lots."""
+    mr_kwargs = dict(
+        month=8, days_held=Decimal("31"), days_in_month=Decimal("31"),
+        shares=Decimal("100"), total_btc_sold=Decimal("0.0001"),
+        adj_btc=Decimal("0.5"), adj_basis=Decimal("1000"),
+    )
+    yr = YearResult(
+        year=2024,
+        lot_results={
+            "lot-1": [MonthResult(cost_basis_of_sold=Decimal("1.00"), total_expense=Decimal("2.00"), gain_loss=Decimal("3.00"), **mr_kwargs)],
+            "lot-2": [MonthResult(cost_basis_of_sold=Decimal("4.00"), total_expense=Decimal("5.00"), gain_loss=Decimal("6.00"), **mr_kwargs)],
+        },
+        dispositions=[],
+        end_states={},
+        total_investment_expense=Decimal("7.00"),
+        total_reportable_gain=Decimal("9.00"),
+        total_cost_basis_of_expense=Decimal("5.00"),
+    )
+    export_year_csv(yr, tmp_path)
+    with open(tmp_path / "2024_summary.csv") as f:
+        rows = list(csv.DictReader(f))
+    assert rows[0]["month"] == "8"
+    assert rows[0]["investment_expense"] == "7.00"
+    assert rows[0]["cost_basis_of_expense"] == "5.00"
+    assert rows[0]["reportable_gain"] == "9.00"
+
+
+def test_summary_rounds_to_cents(tmp_path):
+    """Summary values are rounded to cents using ROUND_HALF_UP."""
+    mr_kwargs = dict(
+        month=8, days_held=Decimal("31"), days_in_month=Decimal("31"),
+        shares=Decimal("100"), total_btc_sold=Decimal("0.0001"),
+        adj_btc=Decimal("0.5"), adj_basis=Decimal("1000"),
+    )
+    yr = YearResult(
+        year=2024,
+        lot_results={
+            "lot-1": [MonthResult(
+                cost_basis_of_sold=Decimal("1.234"),
+                total_expense=Decimal("2.185"),
+                gain_loss=Decimal("0.9551"),
+                **mr_kwargs,
+            )],
+        },
+        dispositions=[],
+        end_states={},
+        total_investment_expense=Decimal("2.185"),
+        total_reportable_gain=Decimal("0.9551"),
+        total_cost_basis_of_expense=Decimal("1.234"),
+    )
+    export_year_csv(yr, tmp_path)
+    with open(tmp_path / "2024_summary.csv") as f:
+        rows = list(csv.DictReader(f))
+    assert rows[0]["investment_expense"] == "2.19"
+    assert rows[0]["cost_basis_of_expense"] == "1.23"
+    assert rows[0]["reportable_gain"] == "0.96"
+    assert rows[1]["investment_expense"] == "2.19"
+    assert rows[1]["cost_basis_of_expense"] == "1.23"
+    assert rows[1]["reportable_gain"] == "0.96"
