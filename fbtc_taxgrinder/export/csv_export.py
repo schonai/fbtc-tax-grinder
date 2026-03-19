@@ -49,7 +49,7 @@ def export_year_csv(year_result: YearResult, output_dir: Path) -> None:
 
     # Summary: monthly aggregates + annual total
     monthly_agg: dict[int, dict[str, Decimal]] = defaultdict(
-        lambda: {"investment_expense": Decimal(0), "cost_basis_of_expense": Decimal(0), "reportable_gain": Decimal(0)}
+        lambda: {"investment_expense": Decimal("0"), "cost_basis_of_expense": Decimal("0"), "reportable_gain": Decimal("0")}
     )
     for results in year_result.lot_results.values():
         for mr in results:

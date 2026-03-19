@@ -93,6 +93,10 @@ Fidelity's WHFIT tax reporting document shows an example where buy and sell mont
 
 This tool defaults to full-month granularity (`--full-month`) to match the 1099. The `--prorate` flag is available to use the documented proration method instead.
 
+## Known limitations
+
+**Penny-level rounding discrepancy:** This tool maintains full decimal precision throughout all calculation steps and rounds to cents only at CSV export time. Fidelity's published WHFIT example shows a total reportable gain of -$8.65, but neither full-precision-then-round nor intermediate rounding exactly reproduces that figure. The exact internal rounding strategy Fidelity uses cannot be determined from published data. As a result, computed values may differ from Fidelity's by 1-2 cents on individual line items.
+
 ## Disclaimer
 
 This tool is provided for informational and educational purposes only. It is not financial, tax, or legal advice. The authors make no guarantees about the accuracy or completeness of the calculations. Tax laws are complex and subject to change — consult a qualified tax professional before making any decisions based on this tool's output. Use at your own risk.
