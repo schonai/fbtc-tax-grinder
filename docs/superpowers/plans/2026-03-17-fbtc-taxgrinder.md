@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status (2026-03-19):** Tasks 1-5 complete (54 tests, 97% coverage). Next: Task 6 (compute_year).
+**Status (2026-03-19):** All 14 tasks complete (96 tests, 97% coverage).
 | Task | Status | Coverage |
 |------|--------|----------|
 | 1. Project Scaffolding | ✅ | — |
@@ -10,7 +10,15 @@
 | 3. JSON Data Access Layer | ✅ | 96% |
 | 4. Core Engine — Single Period | ✅ | 99% |
 | 5. Engine — Monthly + Sells | ✅ | 99% |
-| 6-14 | Not started | — |
+| 6. Engine — Full Year | ✅ | 97% |
+| 7. Sell Matching | ✅ | 100% |
+| 8. Fidelity PDF Parser | ✅ | 100% |
+| 9. ETrade CSV Parser | ✅ | 100% |
+| 10. CSV Export | ✅ | 100% |
+| 11. CLI Commands | ✅ | 90% |
+| 12. Spreadsheet Validation | ✅ | — |
+| 13. E2E Integration Test | ✅ | — |
+| 14. Full Suite & Coverage Gate | ✅ | 97% |
 
 **Goal:** Build a Python CLI tool that computes IRS-reportable FBTC tax lots using Fidelity's 6-step WHFIT method, replacing an error-prone Google Sheets implementation.
 
