@@ -227,6 +227,8 @@ def _handle_sells_prorate(
         current_start = event.date
 
     if shares > 0:
+        # +1: include the sell date itself in the post-sell phase, since
+        # the shareholder still held the remaining shares on that day.
         post_days = Decimal(str((month_end - current_start).days)) + 1
         if post_days > 0:
             pr = compute_period(
