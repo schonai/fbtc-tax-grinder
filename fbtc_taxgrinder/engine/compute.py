@@ -6,7 +6,7 @@ from datetime import date
 from decimal import Decimal
 
 from fbtc_taxgrinder.models import (
-    Disposition, Lot, LotState, MonthProceeds, MonthResult,
+    Disposition, Lot, LotState, MonthProceeds, MonthResult, YearProceeds, YearResult,
 )
 
 
@@ -249,4 +249,96 @@ def compute_lot_month(inp: LotMonthInput) -> LotMonthOutput | None:
         ),
         dispositions=dispositions,
         new_state=LotState(adj_btc=adj_btc, adj_basis=adj_basis, shares=shares),
+    )
+
+
+def compute_year(
+    *,
+    lots: list[Lot],
+    proceeds: YearProceeds,
+    prior_state: dict[str, LotState] | None,
+    year: int,
+) -> YearResult:
+    """Compute all lots for a full year, chaining monthly state."""
+    all_lot_results: dict[str, list[MonthResult]] = {}
+    all_dispositions: list[Disposition] = []
+    end_states: dict[str, LotState] = {}
+
+    for lot in lots:
+        # Determine initial state for this lot
+        if lot.purchase_date.year == year:
+            # New lot this year
+            initial_btc = lot.btc_per_share_on_purchase * lot.original_shares
+            state = LotState(
+                adj_btc=initial_btc,
+                adj_basis=lot.total_cost,
+                shares=lot.original_shares,
+            )
+        elif prior_state and lot.id in prior_state:
+            state = prior_state[lot.id]
+        else:
+            # Lot from a prior year without prior state
+            if lot.purchase_date.year < year:
+                raise ValueError(
+                    f"Lot {lot.id} (purchased {lot.purchase_date.isoformat()}) "
+                    f"requires {year - 1} results before computing {year}"
+                )
+            continue  # Future lot, skip
+
+        # Skip fully liquidated lots
+        if state.shares == 0:
+            end_states[lot.id] = state
+            continue
+
+        lot_results: list[MonthResult] = []
+
+        for month in range(1, 13):
+            month_end = _month_end(year, month)
+
+            # Find month-end proceeds (may be absent = zero expense)
+            mp = proceeds.monthly.get(month_end)
+            if mp is None:
+                mp = MonthProceeds(
+                    btc_sold_per_share=Decimal("0"),
+                    proceeds_per_share_usd=Decimal("0"),
+                )
+
+            output = compute_lot_month(LotMonthInput(
+                lot=lot,
+                year=year,
+                month=month,
+                adj_btc=state.adj_btc,
+                adj_basis=state.adj_basis,
+                shares=state.shares,
+                month_proceeds=mp,
+            ))
+
+            if output is None:
+                continue
+
+            lot_results.append(output.month_result)
+            all_dispositions.extend(output.dispositions)
+            state = output.new_state
+
+        all_lot_results[lot.id] = lot_results
+        end_states[lot.id] = state
+
+    # Compute annual summary
+    total_expense = sum(
+        (mr.total_expense for results in all_lot_results.values() for mr in results),
+        Decimal("0"),
+    )
+    total_gain = sum(
+        (mr.gain_loss for results in all_lot_results.values() for mr in results),
+        Decimal("0"),
+    )
+
+    return YearResult(
+        year=year,
+        lot_results=all_lot_results,
+        dispositions=all_dispositions,
+        end_states=end_states,
+        total_investment_expense=total_expense,
+        total_reportable_gain=total_gain,
+        total_cost_basis_of_expense=total_expense - total_gain,
     )

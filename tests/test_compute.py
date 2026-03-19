@@ -1,7 +1,8 @@
 from decimal import Decimal
 from datetime import date
-from fbtc_taxgrinder.engine.compute import compute_period, compute_lot_month, LotMonthInput
-from fbtc_taxgrinder.models import Lot, LotEvent, MonthProceeds
+import pytest
+from fbtc_taxgrinder.engine.compute import compute_period, compute_lot_month, compute_year, LotMonthInput
+from fbtc_taxgrinder.models import Lot, LotEvent, LotState, MonthProceeds, YearProceeds
 
 
 def test_compute_period_full_month():
@@ -267,3 +268,56 @@ def test_sell_then_full_month_state_chain():
     assert r2 is not None
     assert r2.month_result.shares == Decimal("60")  # starting shares
     assert r2.new_state.shares == Decimal("60")  # no sell this month
+
+
+def test_compute_year_single_lot_single_month():
+    """Simplest case: one lot, one active month (Aug 2024), full month."""
+    lot = Lot(
+        id="lot-1", purchase_date=date(2024, 1, 25),
+        original_shares=Decimal("204"), price_per_share=Decimal("34.81"),
+        total_cost=Decimal("7101.24"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="test.csv", events=[],
+    )
+    proceeds = YearProceeds(
+        daily={date(2024, 1, 25): Decimal("0.00087448")},
+        monthly={
+            date(2024, 8, 31): MonthProceeds(
+                btc_sold_per_share=Decimal("0.00000018"),
+                proceeds_per_share_usd=Decimal("0.01070327"),
+            ),
+        },
+        source="test",
+    )
+    result = compute_year(
+        lots=[lot],
+        proceeds=proceeds,
+        prior_state=None,
+        year=2024,
+    )
+    assert "lot-1" in result.lot_results
+    # Aug is month 8, should be the only result with nonzero expense
+    aug = [r for r in result.lot_results["lot-1"] if r.month == 8]
+    assert len(aug) == 1
+    assert aug[0].shares == Decimal("204")
+
+
+def test_compute_year_chain_validation_error():
+    """Lot from 2024 computing 2026 without 2025 state should error."""
+    lot = Lot(
+        id="lot-1", purchase_date=date(2024, 1, 25),
+        original_shares=Decimal("204"), price_per_share=Decimal("34.81"),
+        total_cost=Decimal("7101.24"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="test.csv", events=[],
+    )
+    proceeds = YearProceeds(
+        daily={}, monthly={}, source="test",
+    )
+    with pytest.raises(ValueError, match="requires 2025 results"):
+        compute_year(
+            lots=[lot],
+            proceeds=proceeds,
+            prior_state=None,
+            year=2026,
+        )
