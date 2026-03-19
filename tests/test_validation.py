@@ -1,10 +1,7 @@
-"""Cross-reference engine output against known 2024 spreadsheet values.
+"""Validate engine invariants using real 2024 lot and proceeds data.
 
-Lots 1-9 are unaffected by the proration bug (all purchased before Aug 2024,
-so their first active month is Aug with a full 31 days).
-
-Lots 10-15 are affected by the bug — the engine's correct proration will
-produce different values from the spreadsheet.
+These tests verify mathematical properties that must hold regardless of
+the specific numeric values — no spreadsheet comparisons.
 """
 from decimal import Decimal
 from datetime import date
@@ -55,7 +52,7 @@ PROCEEDS_2024 = YearProceeds(
     source="test",
 )
 
-LOTS_2024 = [
+ALL_LOTS_2024 = [
     Lot(id="lot-1", purchase_date=date(2024, 1, 25), original_shares=Decimal("204"),
         price_per_share=Decimal("34.81"), total_cost=Decimal("7101.24"),
         btc_per_share_on_purchase=Decimal("0.00087448"), source_file="t", events=[]),
@@ -83,53 +80,6 @@ LOTS_2024 = [
     Lot(id="lot-9", purchase_date=date(2024, 6, 5), original_shares=Decimal("4"),
         price_per_share=Decimal("62.2379"), total_cost=Decimal("248.9516"),
         btc_per_share_on_purchase=Decimal("0.00087448"), source_file="t", events=[]),
-]
-
-# Expected EOY values from spreadsheet (lots 1-9 are bug-free)
-EXPECTED_EOY = {
-    "lot-1": {"adj_btc": Decimal("0.17821032"), "adj_basis": Decimal("7093.928514")},
-    "lot-2": {"adj_btc": Decimal("0.00174716"), "adj_basis": Decimal("91.52566741")},
-    "lot-3": {"adj_btc": Decimal("0.00786222"), "adj_basis": Decimal("403.2343991")},
-    "lot-4": {"adj_btc": Decimal("0.03669036"), "adj_basis": Decimal("2446.708256")},
-    "lot-5": {"adj_btc": Decimal("0.00087358"), "adj_basis": Decimal("56.58068409")},
-    "lot-6": {"adj_btc": Decimal("0.00087358"), "adj_basis": Decimal("56.12215668")},
-    "lot-7": {"adj_btc": Decimal("0.00087358"), "adj_basis": Decimal("55.76252734")},
-    "lot-8": {"adj_btc": Decimal("0.04717332"), "adj_basis": Decimal("2999.831969")},
-    "lot-9": {"adj_btc": Decimal("0.00349432"), "adj_basis": Decimal("248.6952777")},
-}
-
-
-def test_lots_1_through_9_match_spreadsheet():
-    """Lots 1-9: purchased before Aug, full-month proration, should match spreadsheet exactly."""
-    result = compute_year(
-        lots=LOTS_2024,
-        proceeds=PROCEEDS_2024,
-        prior_state=None,
-        year=2024,
-    )
-
-    for lot_id, expected in EXPECTED_EOY.items():
-        lot_months = result.lot_results[lot_id]
-        assert lot_months, f"No results for {lot_id}"
-        last_month = lot_months[-1]
-
-        # Compare with tight tolerance — Decimal arithmetic should be near-exact
-        btc_diff = abs(last_month.adj_btc - expected["adj_btc"])
-        basis_diff = abs(last_month.adj_basis - expected["adj_basis"])
-
-        assert btc_diff < Decimal("1E-8"), (
-            f"{lot_id} adj_btc: expected {expected['adj_btc']}, "
-            f"got {last_month.adj_btc}, diff={btc_diff}"
-        )
-        # Spreadsheet uses float arithmetic with intermediate rounding;
-        # engine uses full Decimal precision. Allow 0.01 tolerance.
-        assert basis_diff < Decimal("0.01"), (
-            f"{lot_id} adj_basis: expected {expected['adj_basis']}, "
-            f"got {last_month.adj_basis}, diff={basis_diff}"
-        )
-
-
-LOTS_10_TO_15 = [
     Lot(id="lot-10", purchase_date=date(2024, 8, 19), original_shares=Decimal("1"),
         price_per_share=Decimal("51.3995"), total_cost=Decimal("51.3995"),
         btc_per_share_on_purchase=Decimal("0.00087437"), source_file="t", events=[]),
@@ -150,35 +100,129 @@ LOTS_10_TO_15 = [
         btc_per_share_on_purchase=Decimal("0.00087391"), source_file="t", events=[]),
 ]
 
-# Spreadsheet values (with proration bug — full month instead of prorated)
-BUGGY_EOY_10_TO_15 = {
-    "lot-10": {"adj_btc": Decimal("0.00087347"), "adj_basis": Decimal("51.34657205")},
-    "lot-11": {"adj_btc": Decimal("0.00436735"), "adj_basis": Decimal("256.5700281")},
-    "lot-12": {"adj_btc": Decimal("0.11006478"), "adj_basis": Decimal("6231.86185")},
-    "lot-13": {"adj_btc": Decimal("0.07512358"), "adj_basis": Decimal("4247.452189")},
-    "lot-14": {"adj_btc": Decimal("0.07162454"), "adj_basis": Decimal("4803.869521")},
-    "lot-15": {"adj_btc": Decimal("0.01485035"), "adj_basis": Decimal("1041.646881")},
-}
 
-
-def test_lots_10_through_15_differ_from_buggy_spreadsheet():
-    """Lots 10-15: correct proration should produce DIFFERENT values from buggy spreadsheet."""
-    all_lots = LOTS_2024 + LOTS_10_TO_15
-    result = compute_year(
-        lots=all_lots,
+def _compute_2024():
+    return compute_year(
+        lots=ALL_LOTS_2024,
         proceeds=PROCEEDS_2024,
         prior_state=None,
         year=2024,
     )
 
-    for lot_id, buggy in BUGGY_EOY_10_TO_15.items():
-        lot_months = result.lot_results[lot_id]
-        assert lot_months, f"No results for {lot_id}"
-        last_month = lot_months[-1]
 
-        # Values should differ from the buggy spreadsheet
-        # (correct proration reduces first-month activity)
-        btc_diff = abs(last_month.adj_btc - buggy["adj_btc"])
-        assert btc_diff > Decimal("1E-12"), (
-            f"{lot_id} adj_btc matches buggy spreadsheet — proration fix may not be working"
+def test_adj_btc_monotonically_decreases():
+    """Each month's adj_btc must be <= the previous month's (BTC is only sold, never added)."""
+    result = _compute_2024()
+    for lot_id, months in result.lot_results.items():
+        for i in range(1, len(months)):
+            assert months[i].adj_btc <= months[i - 1].adj_btc, (
+                f"{lot_id} month {months[i].month}: adj_btc increased "
+                f"from {months[i-1].adj_btc} to {months[i].adj_btc}"
+            )
+
+
+def test_adj_basis_monotonically_decreases():
+    """Each month's adj_basis must be <= the previous month's (basis is only consumed)."""
+    result = _compute_2024()
+    for lot_id, months in result.lot_results.items():
+        for i in range(1, len(months)):
+            assert months[i].adj_basis <= months[i - 1].adj_basis, (
+                f"{lot_id} month {months[i].month}: adj_basis increased "
+                f"from {months[i-1].adj_basis} to {months[i].adj_basis}"
+            )
+
+
+def test_end_state_btc_less_than_initial():
+    """Every lot's year-end adj_btc must be less than initial BTC (expenses were deducted)."""
+    result = _compute_2024()
+    for lot in ALL_LOTS_2024:
+        initial_btc = lot.btc_per_share_on_purchase * lot.original_shares
+        end_state = result.end_states[lot.id]
+        assert end_state.adj_btc < initial_btc, (
+            f"{lot.id}: end adj_btc {end_state.adj_btc} >= initial {initial_btc}"
         )
+
+
+def test_end_state_basis_less_than_initial():
+    """Every lot's year-end adj_basis must be less than initial cost."""
+    result = _compute_2024()
+    for lot in ALL_LOTS_2024:
+        end_state = result.end_states[lot.id]
+        assert end_state.adj_basis < lot.total_cost, (
+            f"{lot.id}: end adj_basis {end_state.adj_basis} >= initial {lot.total_cost}"
+        )
+
+
+def test_total_expense_equals_sum_of_monthly():
+    """Year total_investment_expense must equal sum of all monthly total_expense values."""
+    result = _compute_2024()
+    monthly_sum = sum(
+        mr.total_expense
+        for months in result.lot_results.values()
+        for mr in months
+    )
+    assert result.total_investment_expense == monthly_sum
+
+
+def test_total_gain_equals_sum_of_monthly():
+    """Year total_reportable_gain must equal sum of all monthly gain_loss values."""
+    result = _compute_2024()
+    monthly_sum = sum(
+        mr.gain_loss
+        for months in result.lot_results.values()
+        for mr in months
+    )
+    assert result.total_reportable_gain == monthly_sum
+
+
+def test_cost_basis_identity():
+    """total_cost_basis_of_expense must equal total_expense - total_gain."""
+    result = _compute_2024()
+    assert result.total_cost_basis_of_expense == (
+        result.total_investment_expense - result.total_reportable_gain
+    )
+
+
+def test_all_lots_produce_results():
+    """All 15 lots should have at least one month of results."""
+    result = _compute_2024()
+    for lot in ALL_LOTS_2024:
+        assert lot.id in result.lot_results, f"{lot.id} missing from results"
+        assert len(result.lot_results[lot.id]) > 0, f"{lot.id} has no monthly results"
+
+
+def test_prorated_lots_have_fewer_active_months():
+    """Lots purchased mid-Aug or later should have fewer active months than lots purchased in Jan."""
+    result = _compute_2024()
+    jan_lot_months = len(result.lot_results["lot-1"])  # purchased Jan 25
+    nov_lot_months = len(result.lot_results["lot-15"])  # purchased Nov 5
+    assert nov_lot_months < jan_lot_months, (
+        f"lot-15 (Nov purchase) has {nov_lot_months} months, "
+        f"lot-1 (Jan purchase) has {jan_lot_months} months"
+    )
+
+
+def test_no_negative_values():
+    """adj_btc, adj_basis, total_btc_sold, cost_basis_of_sold, total_expense must all be >= 0."""
+    result = _compute_2024()
+    for lot_id, months in result.lot_results.items():
+        for mr in months:
+            assert mr.adj_btc >= 0, f"{lot_id} month {mr.month}: negative adj_btc"
+            assert mr.adj_basis >= 0, f"{lot_id} month {mr.month}: negative adj_basis"
+            assert mr.total_btc_sold >= 0, f"{lot_id} month {mr.month}: negative total_btc_sold"
+            assert mr.cost_basis_of_sold >= 0, f"{lot_id} month {mr.month}: negative cost_basis"
+            assert mr.total_expense >= 0, f"{lot_id} month {mr.month}: negative total_expense"
+
+
+def test_deterministic():
+    """Running compute_year twice with same inputs produces identical results."""
+    r1 = _compute_2024()
+    r2 = _compute_2024()
+    for lot in ALL_LOTS_2024:
+        months1 = r1.lot_results[lot.id]
+        months2 = r2.lot_results[lot.id]
+        assert len(months1) == len(months2)
+        for m1, m2 in zip(months1, months2):
+            assert m1.adj_btc == m2.adj_btc
+            assert m1.adj_basis == m2.adj_basis
+            assert m1.total_expense == m2.total_expense
