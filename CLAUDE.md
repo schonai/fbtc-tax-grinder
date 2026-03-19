@@ -1,3 +1,7 @@
+# Reference Documents
+
+- [FBTC 2025 Grantor Trust Tax Reporting Statement](docs/fbtc-2025-grantor-trust-tax-reporting.md) — Fidelity's WHFIT tax reporting guidance including the 6-step gain/loss and basis calculation example for FBTC shareholders.
+
 # Testing
 
 - Prefer mocks over filesystem/expensive resources in unit tests
