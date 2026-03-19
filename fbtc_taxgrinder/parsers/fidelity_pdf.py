@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import tempfile
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -16,10 +17,18 @@ if TYPE_CHECKING:
 from fbtc_taxgrinder.models import MonthProceeds, YearProceeds
 
 
-def parse_proceeds_line(line: str) -> dict | None:
+@dataclass
+class ProceedsRow:
+    date: date
+    btc_per_share: Decimal
+    btc_sold_per_share: Decimal | None = None
+    proceeds_per_share_usd: Decimal | None = None
+
+
+def parse_proceeds_line(line: str) -> ProceedsRow | None:
     """Parse a single line from the Fidelity Gross Proceeds PDF text.
 
-    Returns dict with date, btc_per_share, and optionally btc_sold_per_share
+    Returns ProceedsRow with date, btc_per_share, and optionally btc_sold_per_share
     and proceeds_per_share_usd. Returns None for non-data lines.
     """
     line = line.strip()
@@ -47,16 +56,14 @@ def parse_proceeds_line(line: str) -> dict | None:
     except (ValueError, InvalidOperation):
         return None
 
-    result: dict = {
-        "date": d,
-        "btc_per_share": btc_per_share,
-        "btc_sold_per_share": None,
-        "proceeds_per_share_usd": None,
-    }
+    result = ProceedsRow(
+        date=d,
+        btc_per_share=btc_per_share,
+    )
 
     if match.group(3) and match.group(4):
-        result["btc_sold_per_share"] = Decimal(match.group(3))
-        result["proceeds_per_share_usd"] = Decimal(match.group(4))
+        result.btc_sold_per_share = Decimal(match.group(3))
+        result.proceeds_per_share_usd = Decimal(match.group(4))
 
     return result
 
@@ -81,17 +88,17 @@ def parse_proceeds_pdf(pdf: PDF) -> tuple[dict[date, Decimal], dict[date, MonthP
             parsed = parse_proceeds_line(line)
             if parsed is None:
                 continue
-            daily[parsed["date"]] = parsed["btc_per_share"]
-            if parsed["btc_sold_per_share"] is not None:
-                monthly[parsed["date"]] = MonthProceeds(
-                    btc_sold_per_share=parsed["btc_sold_per_share"],
-                    proceeds_per_share_usd=parsed["proceeds_per_share_usd"],
+            daily[parsed.date] = parsed.btc_per_share
+            if parsed.btc_sold_per_share is not None:
+                monthly[parsed.date] = MonthProceeds(
+                    btc_sold_per_share=parsed.btc_sold_per_share,
+                    proceeds_per_share_usd=parsed.proceeds_per_share_usd,
                 )
 
     return daily, monthly
 
 
-def parse_fidelity_pdf_file(file_path: str) -> YearProceeds:
+def parse_fidelity_pdf_file(file_path: str | Path) -> YearProceeds:
     """Parse a Fidelity WHFIT PDF from a local file path.
 
     Args:
@@ -103,7 +110,7 @@ def parse_fidelity_pdf_file(file_path: str) -> YearProceeds:
     with pdfplumber.open(file_path) as pdf:
         daily, monthly = parse_proceeds_pdf(pdf)
 
-    source_name = file_path.split("/")[-1] if "/" in file_path else file_path
+    source_name = Path(file_path).name
     return YearProceeds(daily=daily, monthly=monthly, source=source_name)
 
 

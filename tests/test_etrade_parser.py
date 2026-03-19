@@ -1,4 +1,5 @@
 import csv
+import pytest
 from decimal import Decimal
 from datetime import date
 from pathlib import Path
@@ -30,12 +31,12 @@ def test_parse_rows_buys_only():
         },
     ]
     result = parse_etrade_rows(rows)
-    assert len(result["buys"]) == 1
-    assert result["buys"][0]["date"] == date(2024, 1, 25)
-    assert result["buys"][0]["shares"] == Decimal("204")
-    assert result["buys"][0]["price_per_share"] == Decimal("34.81")
-    assert result["buys"][0]["total_cost"] == Decimal("7101.24")
-    assert len(result["sells"]) == 0
+    assert len(result.buys) == 1
+    assert result.buys[0].date == date(2024, 1, 25)
+    assert result.buys[0].shares == Decimal("204")
+    assert result.buys[0].price_per_share == Decimal("34.81")
+    assert result.buys[0].total_cost == Decimal("7101.24")
+    assert len(result.sells) == 0
 
 
 def test_parse_rows_sells():
@@ -47,10 +48,10 @@ def test_parse_rows_sells():
         },
     ]
     result = parse_etrade_rows(rows)
-    assert len(result["sells"]) == 1
-    assert result["sells"][0]["date"] == date(2025, 12, 23)
-    assert result["sells"][0]["shares"] == Decimal("14")
-    assert result["sells"][0]["proceeds"] == Decimal("1067.08")
+    assert len(result.sells) == 1
+    assert result.sells[0].date == date(2025, 12, 23)
+    assert result.sells[0].shares == Decimal("14")
+    assert result.sells[0].proceeds == Decimal("1067.08")
 
 
 def test_parse_rows_chronological_order():
@@ -66,8 +67,8 @@ def test_parse_rows_chronological_order():
         },
     ]
     result = parse_etrade_rows(rows)
-    assert result["buys"][0]["date"] == date(2024, 1, 25)
-    assert result["sells"][0]["date"] == date(2025, 12, 23)
+    assert result.buys[0].date == date(2024, 1, 25)
+    assert result.sells[0].date == date(2025, 12, 23)
 
 
 def test_parse_etrade_csv(tmp_path):
@@ -82,5 +83,24 @@ def test_parse_etrade_csv(tmp_path):
         },
     ])
     result = parse_etrade_csv(str(csv_path))
-    assert len(result["buys"]) == 1
-    assert result["buys"][0]["date"] == date(2024, 1, 25)
+    assert len(result.buys) == 1
+    assert result.buys[0].date == date(2024, 1, 25)
+
+
+def test_parse_rows_empty():
+    """Empty input returns empty TradeResult."""
+    result = parse_etrade_rows([])
+    assert result.buys == []
+    assert result.sells == []
+
+
+def test_parse_rows_missing_columns():
+    """Missing required columns should raise ValueError."""
+    rows = [
+        {
+            "Trade Date": "1/25/2024", "Order Type": "Buy", "Security": "FBTC",
+            # Missing Quantity, Executed Price, Net Amount
+        },
+    ]
+    with pytest.raises(ValueError, match="Missing required column"):
+        parse_etrade_rows(rows)

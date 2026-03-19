@@ -10,25 +10,25 @@ from fbtc_taxgrinder.parsers.fidelity_pdf import (
 def test_parse_daily_line():
     result = parse_proceeds_line("1/11/2024 0.00087448")
     assert result is not None
-    assert result["date"] == date(2024, 1, 11)
-    assert result["btc_per_share"] == Decimal("0.00087448")
-    assert result["btc_sold_per_share"] is None
+    assert result.date == date(2024, 1, 11)
+    assert result.btc_per_share == Decimal("0.00087448")
+    assert result.btc_sold_per_share is None
 
 
 def test_parse_month_end_line():
     result = parse_proceeds_line("8/31/2024 0.00087430 0.00000018 0 .01070327")
     assert result is not None
-    assert result["date"] == date(2024, 8, 31)
-    assert result["btc_per_share"] == Decimal("0.00087430")
-    assert result["btc_sold_per_share"] == Decimal("0.00000018")
-    assert result["proceeds_per_share_usd"] == Decimal("0.01070327")
+    assert result.date == date(2024, 8, 31)
+    assert result.btc_per_share == Decimal("0.00087430")
+    assert result.btc_sold_per_share == Decimal("0.00000018")
+    assert result.proceeds_per_share_usd == Decimal("0.01070327")
 
 
 def test_parse_month_end_line_no_space_in_decimal():
     """2025 PDF may not have the space issue."""
     result = parse_proceeds_line("1/31/2025 0.00087339 0.00000018 0.01806356")
     assert result is not None
-    assert result["proceeds_per_share_usd"] == Decimal("0.01806356")
+    assert result.proceeds_per_share_usd == Decimal("0.01806356")
 
 
 def test_parse_header_line():

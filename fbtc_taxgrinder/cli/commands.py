@@ -98,31 +98,31 @@ def import_trades(ctx: click.Context, file_path: str) -> None:
     new_lots = 0
     source_name = Path(file_path).name
 
-    for buy in parsed["buys"]:
-        key = (buy["date"], buy["shares"], buy["price_per_share"])
+    for buy in parsed.buys:
+        key = (buy.date, buy.shares, buy.price_per_share)
         if key in existing_keys:
             continue
 
         # Look up btc_per_share on purchase date
-        year = buy["date"].year
+        year = buy.date.year
         yp = proceeds_db.load(dd, year)
         if yp is None:
             raise click.ClickException(
                 f"Proceeds for {year} not imported. "
                 f"Run 'import-proceeds' first."
             )
-        btc = yp.daily.get(buy["date"])
+        btc = yp.daily.get(buy.date)
         if btc is None:
             raise click.ClickException(
-                f"No BTC-per-share data for {buy['date'].isoformat()} in {year} proceeds."
+                f"No BTC-per-share data for {buy.date.isoformat()} in {year} proceeds."
             )
 
         lot = Lot(
             id=f"lot-{next_id}",
-            purchase_date=buy["date"],
-            original_shares=buy["shares"],
-            price_per_share=buy["price_per_share"],
-            total_cost=buy["total_cost"],
+            purchase_date=buy.date,
+            original_shares=buy.shares,
+            price_per_share=buy.price_per_share,
+            total_cost=buy.total_cost,
             btc_per_share_on_purchase=btc,
             source_file=source_name,
             events=[],
@@ -134,15 +134,15 @@ def import_trades(ctx: click.Context, file_path: str) -> None:
 
     # Process sells
     new_sells = 0
-    for sell in parsed["sells"]:
+    for sell in parsed.sells:
         matched_lot = match_sell_to_lot(
             existing_lots,
-            sell_shares=sell["shares"],
-            sell_date=sell["date"],
+            sell_shares=sell.shares,
+            sell_date=sell.date,
         )
         # Check idempotency: skip if this sell already recorded
         already_exists = any(
-            e.date == sell["date"] and e.shares == sell["shares"]
+            e.date == sell.date and e.shares == sell.shares
             for e in matched_lot.events
         )
         if already_exists:
@@ -151,10 +151,10 @@ def import_trades(ctx: click.Context, file_path: str) -> None:
         sell_count = sum(1 for e in matched_lot.events if e.type == "sell")
         matched_lot.events.append(LotEvent(
             type="sell",
-            date=sell["date"],
-            shares=sell["shares"],
-            price_per_share=sell["price_per_share"],
-            proceeds=sell["proceeds"],
+            date=sell.date,
+            shares=sell.shares,
+            price_per_share=sell.price_per_share,
+            proceeds=sell.proceeds,
             disposition_id=f"{matched_lot.id}-sell-{sell_count + 1}",
         ))
         new_sells += 1

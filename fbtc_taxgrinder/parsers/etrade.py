@@ -1,26 +1,58 @@
 from __future__ import annotations
 
 import csv
+import itertools
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 
 
-def parse_etrade_rows(rows: Iterable[dict]) -> dict:
+@dataclass
+class BuyTrade:
+    date: date
+    shares: Decimal
+    price_per_share: Decimal
+    total_cost: Decimal
+
+
+@dataclass
+class SellTrade:
+    date: date
+    shares: Decimal
+    price_per_share: Decimal
+    proceeds: Decimal
+
+
+@dataclass
+class TradeResult:
+    buys: list[BuyTrade]
+    sells: list[SellTrade]
+
+
+def parse_etrade_rows(rows: Iterable[dict]) -> TradeResult:
     """Extract FBTC transactions from ETrade CSV row dicts.
 
     Args:
         rows: Iterable of dicts with keys matching ETrade CSV headers.
 
     Returns:
-        Dict with 'buys' and 'sells' lists, each sorted by date.
-        Each buy: {date, shares, price_per_share, total_cost}
-        Each sell: {date, shares, price_per_share, proceeds}
+        TradeResult with buys and sells lists, each sorted by date.
     """
-    buys: list[dict] = []
-    sells: list[dict] = []
+    buys: list[BuyTrade] = []
+    sells: list[SellTrade] = []
 
-    for row in rows:
+    rows_iter = iter(rows)
+    first = next(rows_iter, None)
+    if first is None:
+        return TradeResult(buys=[], sells=[])
+    required = {"Security", "Trade Date", "Quantity", "Executed Price", "Order Type", "Net Amount"}
+    missing = required - first.keys()
+    if missing:
+        raise ValueError(f"Missing required column(s): {', '.join(sorted(missing))}")
+
+    for row in itertools.chain([first], rows_iter):
         if row["Security"].strip() != "FBTC":
             continue
 
@@ -32,35 +64,35 @@ def parse_etrade_rows(rows: Iterable[dict]) -> dict:
 
         if order_type == "Buy":
             net_amount = Decimal(row["Net Amount"].strip())
-            buys.append({
-                "date": trade_date,
-                "shares": shares,
-                "price_per_share": price,
-                "total_cost": net_amount,
-            })
+            buys.append(BuyTrade(
+                date=trade_date,
+                shares=shares,
+                price_per_share=price,
+                total_cost=net_amount,
+            ))
         elif order_type == "Sell":
             proceeds = Decimal(row["Net Amount"].strip())
-            sells.append({
-                "date": trade_date,
-                "shares": shares,
-                "price_per_share": price,
-                "proceeds": proceeds,
-            })
+            sells.append(SellTrade(
+                date=trade_date,
+                shares=shares,
+                price_per_share=price,
+                proceeds=proceeds,
+            ))
 
-    buys.sort(key=lambda x: x["date"])
-    sells.sort(key=lambda x: x["date"])
+    buys.sort(key=lambda x: x.date)
+    sells.sort(key=lambda x: x.date)
 
-    return {"buys": buys, "sells": sells}
+    return TradeResult(buys=buys, sells=sells)
 
 
-def parse_etrade_csv(file_path: str) -> dict:
+def parse_etrade_csv(file_path: str | Path) -> TradeResult:
     """Parse an ETrade CSV file and extract FBTC transactions.
 
     Args:
         file_path: Path to the ETrade CSV file.
 
     Returns:
-        Dict with 'buys' and 'sells' lists, each sorted by date.
+        TradeResult with buys and sells lists, each sorted by date.
     """
     with open(file_path, newline="") as f:
         reader = csv.DictReader(f)
