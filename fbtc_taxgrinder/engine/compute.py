@@ -4,10 +4,16 @@ import calendar
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from enum import Enum
 
 from fbtc_taxgrinder.models import (
     Disposition, Lot, LotState, MonthProceeds, MonthResult, YearProceeds, YearResult,
 )
+
+
+class HoldingMode(Enum):
+    FULL_MONTH = "full_month"
+    PRORATE = "prorate"
 
 
 @dataclass
@@ -100,8 +106,13 @@ def _month_start(year: int, month: int) -> date:
     return date(year, month, 1)
 
 
-def compute_lot_month(inp: LotMonthInput) -> LotMonthOutput | None:
-    """Compute one month for one lot, handling mid-month sells."""
+def compute_lot_month(inp: LotMonthInput, *, holding_mode: HoldingMode = HoldingMode.FULL_MONTH) -> LotMonthOutput | None:
+    """Compute one month for one lot, handling mid-month sells.
+
+    FULL_MONTH (default): lots purchased mid-month use the full month as their
+    holding period, matching Fidelity's 1099 calculations.
+    PRORATE: prorate based on actual days held, as shown in the WHFIT document example.
+    """
     month_end = _month_end(inp.year, inp.month)
     month_start_date = _month_start(inp.year, inp.month)
     days_in_month = Decimal(str(calendar.monthrange(inp.year, inp.month)[1]))
@@ -112,11 +123,15 @@ def compute_lot_month(inp: LotMonthInput) -> LotMonthOutput | None:
 
     # Determine base days_held for the full month
     if inp.lot.purchase_date >= month_start_date:
-        # First month: prorate from purchase date
-        full_days_held = Decimal(str((month_end - inp.lot.purchase_date).days))
-        if full_days_held == 0:
-            return None  # Purchased on last day, starts next month
-        period_start = inp.lot.purchase_date
+        if holding_mode is HoldingMode.PRORATE:
+            # First month: prorate from purchase date
+            full_days_held = Decimal(str((month_end - inp.lot.purchase_date).days))
+            if full_days_held == 0:
+                return None  # Purchased on last day, starts next month
+            period_start = inp.lot.purchase_date
+        else:
+            full_days_held = days_in_month
+            period_start = month_start_date
     else:
         full_days_held = days_in_month
         period_start = month_start_date
@@ -258,6 +273,7 @@ def compute_year(
     proceeds: YearProceeds,
     prior_state: dict[str, LotState] | None,
     year: int,
+    holding_mode: HoldingMode = HoldingMode.FULL_MONTH,
 ) -> YearResult:
     """Compute all lots for a full year, chaining monthly state."""
     all_lot_results: dict[str, list[MonthResult]] = {}
@@ -303,15 +319,18 @@ def compute_year(
                     proceeds_per_share_usd=Decimal("0"),
                 )
 
-            output = compute_lot_month(LotMonthInput(
-                lot=lot,
-                year=year,
-                month=month,
-                adj_btc=state.adj_btc,
-                adj_basis=state.adj_basis,
-                shares=state.shares,
-                month_proceeds=mp,
-            ))
+            output = compute_lot_month(
+                LotMonthInput(
+                    lot=lot,
+                    year=year,
+                    month=month,
+                    adj_btc=state.adj_btc,
+                    adj_basis=state.adj_basis,
+                    shares=state.shares,
+                    month_proceeds=mp,
+                ),
+                holding_mode=holding_mode,
+            )
 
             if output is None:
                 continue

@@ -8,7 +8,7 @@ from fbtc_taxgrinder.db import lots as lots_db
 from fbtc_taxgrinder.db import proceeds as proceeds_db
 from fbtc_taxgrinder.db import results as results_db
 from fbtc_taxgrinder.db import state as state_db
-from fbtc_taxgrinder.engine.compute import compute_year
+from fbtc_taxgrinder.engine.compute import HoldingMode, compute_year
 from fbtc_taxgrinder.engine.matching import match_sell_to_lot
 from fbtc_taxgrinder.export.csv_export import export_year_csv
 from fbtc_taxgrinder.models import Lot, LotEvent
@@ -166,8 +166,16 @@ def import_trades(ctx: click.Context, file_path: str) -> None:
 @cli.command()
 @click.option("--year", required=True, type=int, help="Tax year to compute.")
 @click.option("--force", is_flag=True, help="Recompute even if results exist.")
+@click.option("--full-month-holding", "holding_mode", flag_value=HoldingMode.FULL_MONTH,
+              default=True,
+              help="Use the full month as holding period for lots purchased mid-month. "
+              "This is the default and matches Fidelity's 1099 calculations.")
+@click.option("--prorate-first-month", "holding_mode", flag_value=HoldingMode.PRORATE,
+              help="Prorate the first month based on actual days held. "
+              "This matches the example in Fidelity's WHFIT tax reporting document "
+              "but produces values that differ from the 1099.")
 @click.pass_context
-def compute(ctx: click.Context, year: int, force: bool) -> None:
+def compute(ctx: click.Context, year: int, force: bool, holding_mode: HoldingMode) -> None:
     """Compute tax lots for a given year."""
     dd = _data_dir(ctx)
 
@@ -198,6 +206,7 @@ def compute(ctx: click.Context, year: int, force: bool) -> None:
         proceeds=yp,
         prior_state=prior,
         year=year,
+        holding_mode=holding_mode,
     )
 
     # Save results and year-end state

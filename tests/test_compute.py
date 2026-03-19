@@ -1,7 +1,7 @@
 from decimal import Decimal
 from datetime import date
 import pytest
-from fbtc_taxgrinder.engine.compute import compute_period, compute_lot_month, compute_year, LotMonthInput
+from fbtc_taxgrinder.engine.compute import HoldingMode, compute_period, compute_lot_month, compute_year, LotMonthInput
 from fbtc_taxgrinder.models import Lot, LotEvent, LotState, MonthProceeds, YearProceeds
 
 
@@ -300,6 +300,41 @@ def test_compute_year_single_lot_single_month():
     aug = [r for r in result.lot_results["lot-1"] if r.month == 8]
     assert len(aug) == 1
     assert aug[0].shares == Decimal("204")
+
+
+def test_holding_mode_flag():
+    """Default uses full month; PRORATE mode prorates from purchase date."""
+    lot = Lot(
+        id="lot-1", purchase_date=date(2024, 1, 15),
+        original_shares=Decimal("100"), price_per_share=Decimal("50.00"),
+        total_cost=Decimal("5000.00"),
+        btc_per_share_on_purchase=Decimal("0.001"),
+        source_file="test.csv", events=[],
+    )
+    mp = MonthProceeds(
+        btc_sold_per_share=Decimal("0.00000018"),
+        proceeds_per_share_usd=Decimal("0.01070327"),
+    )
+    inp = LotMonthInput(
+        lot=lot, year=2024, month=1,
+        adj_btc=Decimal("0.1"),
+        adj_basis=Decimal("5000.00"),
+        shares=Decimal("100"),
+        month_proceeds=mp,
+    )
+
+    # Default: full month (31 days)
+    r_full = compute_lot_month(inp)
+    assert r_full is not None
+    assert r_full.month_result.days_held == Decimal("31")
+
+    # PRORATE mode: prorate from purchase date (16 days out of 31)
+    r_prorated = compute_lot_month(inp, holding_mode=HoldingMode.PRORATE)
+    assert r_prorated is not None
+    assert r_prorated.month_result.days_held == Decimal("16")
+
+    # Full month should produce higher expense
+    assert r_full.month_result.total_expense > r_prorated.month_result.total_expense
 
 
 def test_compute_year_chain_validation_error():

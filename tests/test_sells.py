@@ -223,8 +223,8 @@ def test_sell_in_purchase_month():
     assert result is not None
     assert len(result.dispositions) == 1
     assert result.new_state.shares == Decimal("40")
-    # days_held should be 31 - 5 = 26 (purchase month proration)
-    assert result.month_result.days_held == Decimal("26")
+    # Default: full month holding (31 days)
+    assert result.month_result.days_held == Decimal("31")
 
 
 def test_sell_events_from_other_months_ignored():
