@@ -5,9 +5,13 @@ import tempfile
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pdfplumber
 import requests
+
+if TYPE_CHECKING:
+    from pdfplumber import PDF
 
 from fbtc_taxgrinder.models import MonthProceeds, YearProceeds
 
@@ -57,51 +61,75 @@ def parse_proceeds_line(line: str) -> dict | None:
     return result
 
 
-def parse_fidelity_pdf(source: str) -> YearProceeds:
-    """Parse a Fidelity WHFIT PDF from URL or local file path.
+def parse_proceeds_pdf(pdf: PDF) -> tuple[dict[date, Decimal], dict[date, MonthProceeds]]:
+    """Extract daily and monthly proceeds from an opened pdfplumber PDF.
 
     Args:
-        source: URL (http/https) or local file path.
+        pdf: An opened pdfplumber PDF object.
+
+    Returns:
+        Tuple of (daily, monthly) dicts.
+    """
+    daily: dict[date, Decimal] = {}
+    monthly: dict[date, MonthProceeds] = {}
+
+    for page in pdf.pages:
+        text = page.extract_text()
+        if not text:
+            continue
+        for line in text.split("\n"):
+            parsed = parse_proceeds_line(line)
+            if parsed is None:
+                continue
+            daily[parsed["date"]] = parsed["btc_per_share"]
+            if parsed["btc_sold_per_share"] is not None:
+                monthly[parsed["date"]] = MonthProceeds(
+                    btc_sold_per_share=parsed["btc_sold_per_share"],
+                    proceeds_per_share_usd=parsed["proceeds_per_share_usd"],
+                )
+
+    return daily, monthly
+
+
+def parse_fidelity_pdf_file(file_path: str) -> YearProceeds:
+    """Parse a Fidelity WHFIT PDF from a local file path.
+
+    Args:
+        file_path: Local path to the PDF.
 
     Returns:
         YearProceeds with daily and monthly data.
     """
-    if source.startswith("http://") or source.startswith("https://"):
-        tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-        try:
-            resp = requests.get(source, timeout=30)
-            resp.raise_for_status()
-            tmp.write(resp.content)
-            tmp.close()
-            pdf_path = tmp.name
-        except Exception:
-            Path(tmp.name).unlink(missing_ok=True)
-            raise
-    else:
-        pdf_path = source
+    with pdfplumber.open(file_path) as pdf:
+        daily, monthly = parse_proceeds_pdf(pdf)
 
-    try:
-        daily: dict[date, Decimal] = {}
-        monthly: dict[date, MonthProceeds] = {}
-
-        with pdfplumber.open(pdf_path) as pdf:
-            for page in pdf.pages:
-                text = page.extract_text()
-                if not text:
-                    continue
-                for line in text.split("\n"):
-                    parsed = parse_proceeds_line(line)
-                    if parsed is None:
-                        continue
-                    daily[parsed["date"]] = parsed["btc_per_share"]
-                    if parsed["btc_sold_per_share"] is not None:
-                        monthly[parsed["date"]] = MonthProceeds(
-                            btc_sold_per_share=parsed["btc_sold_per_share"],
-                            proceeds_per_share_usd=parsed["proceeds_per_share_usd"],
-                        )
-    finally:
-        if source.startswith("http"):
-            Path(pdf_path).unlink(missing_ok=True)
-
-    source_name = source.split("/")[-1] if "/" in source else source
+    source_name = file_path.split("/")[-1] if "/" in file_path else file_path
     return YearProceeds(daily=daily, monthly=monthly, source=source_name)
+
+
+def parse_fidelity_pdf_url(url: str) -> YearProceeds:
+    """Parse a Fidelity WHFIT PDF from a URL.
+
+    Downloads the PDF to a temp file, then delegates to parse_fidelity_pdf_file.
+
+    Args:
+        url: HTTP/HTTPS URL to the PDF.
+
+    Returns:
+        YearProceeds with daily and monthly data.
+    """
+    tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    try:
+        resp = requests.get(url, timeout=30)
+        resp.raise_for_status()
+        tmp.write(resp.content)
+        tmp.close()
+        result = parse_fidelity_pdf_file(tmp.name)
+        # Override source to use the URL filename
+        source_name = url.split("/")[-1] if "/" in url else url
+        result = YearProceeds(
+            daily=result.daily, monthly=result.monthly, source=source_name,
+        )
+        return result
+    finally:
+        Path(tmp.name).unlink(missing_ok=True)
