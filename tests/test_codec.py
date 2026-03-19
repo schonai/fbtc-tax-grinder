@@ -137,6 +137,23 @@ def test_decode_none():
     assert _reconstruct(Decimal, None) is None
 
 
+def test_encode_no_scientific_notation():
+    """Decimal values with small exponents must serialize as fixed-point, not scientific notation."""
+    yp = YearProceeds(
+        daily={},
+        monthly={
+            date(2024, 8, 31): MonthProceeds(
+                btc_sold_per_share=Decimal("1.8E-7"),
+                proceeds_per_share_usd=Decimal("0.01070327"),
+            ),
+        },
+        source="test.pdf",
+    )
+    text = encode(yp)
+    assert "E-" not in text and "e-" not in text
+    assert "0.00000018" in text
+
+
 def test_lot_without_events_roundtrip():
     """Lot with empty events list round-trips correctly."""
     lot = Lot(

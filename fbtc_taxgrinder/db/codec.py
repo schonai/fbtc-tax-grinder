@@ -22,7 +22,7 @@ def _prepare(obj: object) -> object:
     if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
         return {k: _prepare(v) for k, v in dataclasses.asdict(obj).items()}
     if isinstance(obj, Decimal):
-        return str(obj)
+        return format(obj, 'f')
     if isinstance(obj, date):
         return obj.isoformat()
     if isinstance(obj, dict):
