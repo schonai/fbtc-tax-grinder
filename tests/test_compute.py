@@ -360,6 +360,70 @@ def test_compute_period_zero_adj_btc():
     assert result.adj_basis == Decimal("500.00")
 
 
+def test_compute_year_with_prior_state():
+    """Multi-year state chaining: 2025 uses carried-forward state from 2024."""
+    lot = Lot(
+        id="lot-1", purchase_date=date(2024, 1, 25),
+        original_shares=Decimal("204"), price_per_share=Decimal("34.81"),
+        total_cost=Decimal("7101.24"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="test.csv", events=[],
+    )
+    proceeds_2024 = YearProceeds(
+        daily={date(2024, 1, 25): Decimal("0.00087448")},
+        monthly={
+            date(2024, 8, 31): MonthProceeds(
+                btc_sold_per_share=Decimal("0.00000018"),
+                proceeds_per_share_usd=Decimal("0.01070327"),
+            ),
+        },
+        source="test",
+    )
+
+    # Compute 2024
+    result_2024 = compute_year(
+        lots=[lot], proceeds=proceeds_2024, prior_state=None, year=2024,
+    )
+    end_state = result_2024.end_states["lot-1"]
+
+    # Verify 2024 state differs from original (expense reduced adj values)
+    original_btc = Decimal("0.00087448") * Decimal("204")
+    assert end_state.adj_btc < original_btc
+    assert end_state.adj_basis < Decimal("7101.24")
+    assert end_state.shares == Decimal("204")
+
+    # Create 2025 proceeds with expense in March
+    proceeds_2025 = YearProceeds(
+        daily={},
+        monthly={
+            date(2025, 3, 31): MonthProceeds(
+                btc_sold_per_share=Decimal("0.00000020"),
+                proceeds_per_share_usd=Decimal("0.01509769"),
+            ),
+        },
+        source="test",
+    )
+
+    # Compute 2025 with prior state from 2024
+    result_2025 = compute_year(
+        lots=[lot], proceeds=proceeds_2025,
+        prior_state=result_2024.end_states, year=2025,
+    )
+    end_state_2025 = result_2025.end_states["lot-1"]
+
+    # 2025 should start from carried-forward values, not originals
+    # After 2025 expense, adj values should be even lower than 2024 end
+    assert end_state_2025.adj_btc < end_state.adj_btc
+    assert end_state_2025.adj_basis < end_state.adj_basis
+    assert end_state_2025.shares == Decimal("204")
+
+    # Verify 2025 March result used carried-forward state
+    march_results = [r for r in result_2025.lot_results["lot-1"] if r.month == 3]
+    assert len(march_results) == 1
+    # The adj_btc at end of March should be less than what 2024 ended with
+    assert march_results[0].adj_btc < end_state.adj_btc
+
+
 def test_compute_year_chain_validation_error():
     """Lot from 2024 computing 2026 without 2025 state should error."""
     lot = Lot(

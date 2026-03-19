@@ -45,6 +45,30 @@ def _write_etrade_csv(path: Path) -> None:
         })
 
 
+def _write_etrade_csv_with_sell(path: Path) -> None:
+    """Write an ETrade CSV with both a buy and a sell row."""
+    fieldnames = [
+        "Trade Date", "Order Type", "Security", "Cusip",
+        "Transaction Description", "Quantity", "Executed Price",
+        "Commission", "Net Amount",
+    ]
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerow({
+            "Trade Date": "1/25/2024", "Order Type": "Buy", "Security": "FBTC",
+            "Cusip": "315948109", "Transaction Description": "FBTC",
+            "Quantity": "204", "Executed Price": "34.81",
+            "Commission": "0.00", "Net Amount": "7101.24",
+        })
+        writer.writerow({
+            "Trade Date": "8/15/2024", "Order Type": "Sell", "Security": "FBTC",
+            "Cusip": "315948109", "Transaction Description": "FBTC",
+            "Quantity": "100", "Executed Price": "50.00",
+            "Commission": "0.00", "Net Amount": "5000.00",
+        })
+
+
 # --- Error path tests ---
 
 def test_import_proceeds_missing_file(data_dir):
@@ -192,6 +216,82 @@ def test_import_trades_missing_proceeds(data_dir, tmp_path):
     assert "not imported" in result.output.lower() or "import-proceeds" in result.output
 
 
+def test_import_trades_with_sells(data_dir, tmp_path):
+    """Import trades with a sell row creates lot and sell event."""
+    _save_test_proceeds(data_dir)
+    csv_path = tmp_path / "trades.csv"
+    _write_etrade_csv_with_sell(csv_path)
+
+    runner = CliRunner()
+    result = runner.invoke(cli, [
+        "--data-dir", str(data_dir),
+        "import-trades", "--file", str(csv_path),
+    ])
+    assert result.exit_code == 0, result.output
+    assert "1 new lots" in result.output
+    assert "1 new sells" in result.output
+
+    # Verify sell event on the lot
+    lots = lots_db.load(data_dir)
+    assert len(lots) == 1
+    lot = lots[0]
+    sell_events = [e for e in lot.events if e.type == "sell"]
+    assert len(sell_events) == 1
+    assert sell_events[0].date == date(2024, 8, 15)
+    assert sell_events[0].shares == Decimal("100")
+    assert sell_events[0].price_per_share == Decimal("50.00")
+
+
+def test_import_trades_sell_idempotent(data_dir, tmp_path):
+    """Importing the same sells twice should produce 0 new sells on second run."""
+    _save_test_proceeds(data_dir)
+    csv_path = tmp_path / "trades.csv"
+    _write_etrade_csv_with_sell(csv_path)
+
+    runner = CliRunner()
+    result = runner.invoke(cli, [
+        "--data-dir", str(data_dir),
+        "import-trades", "--file", str(csv_path),
+    ])
+    assert result.exit_code == 0, result.output
+
+    # Second import
+    result = runner.invoke(cli, [
+        "--data-dir", str(data_dir),
+        "import-trades", "--file", str(csv_path),
+    ])
+    assert result.exit_code == 0, result.output
+    assert "0 new sells" in result.output
+
+
+def test_import_trades_sell_no_match(data_dir, tmp_path):
+    """Sell with no matching lot should fail."""
+    _save_test_proceeds(data_dir)
+    # Write CSV with only a sell (no buy) — no lot will match
+    fieldnames = [
+        "Trade Date", "Order Type", "Security", "Cusip",
+        "Transaction Description", "Quantity", "Executed Price",
+        "Commission", "Net Amount",
+    ]
+    csv_path = tmp_path / "trades.csv"
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerow({
+            "Trade Date": "8/15/2024", "Order Type": "Sell", "Security": "FBTC",
+            "Cusip": "315948109", "Transaction Description": "FBTC",
+            "Quantity": "100", "Executed Price": "50.00",
+            "Commission": "0.00", "Net Amount": "5000.00",
+        })
+
+    runner = CliRunner()
+    result = runner.invoke(cli, [
+        "--data-dir", str(data_dir),
+        "import-trades", "--file", str(csv_path),
+    ])
+    assert result.exit_code != 0
+
+
 def test_compute_happy_path(data_dir, tmp_path):
     """Full compute happy path."""
     _save_test_proceeds(data_dir)
@@ -200,10 +300,11 @@ def test_compute_happy_path(data_dir, tmp_path):
 
     runner = CliRunner()
     # Import trades first
-    runner.invoke(cli, [
+    result = runner.invoke(cli, [
         "--data-dir", str(data_dir),
         "import-trades", "--file", str(csv_path),
     ])
+    assert result.exit_code == 0, result.output
     # Compute
     result = runner.invoke(cli, [
         "--data-dir", str(data_dir),
@@ -220,14 +321,16 @@ def test_compute_already_exists(data_dir, tmp_path):
     _write_etrade_csv(csv_path)
 
     runner = CliRunner()
-    runner.invoke(cli, [
+    result = runner.invoke(cli, [
         "--data-dir", str(data_dir),
         "import-trades", "--file", str(csv_path),
     ])
-    runner.invoke(cli, [
+    assert result.exit_code == 0, result.output
+    result = runner.invoke(cli, [
         "--data-dir", str(data_dir),
         "compute", "--year", "2024",
     ])
+    assert result.exit_code == 0, result.output
     # Second compute should skip
     result = runner.invoke(cli, [
         "--data-dir", str(data_dir),
@@ -256,8 +359,10 @@ def test_export_happy_path(data_dir, tmp_path):
     _write_etrade_csv(csv_path)
 
     runner = CliRunner()
-    runner.invoke(cli, ["--data-dir", str(data_dir), "import-trades", "--file", str(csv_path)])
-    runner.invoke(cli, ["--data-dir", str(data_dir), "compute", "--year", "2024"])
+    result = runner.invoke(cli, ["--data-dir", str(data_dir), "import-trades", "--file", str(csv_path)])
+    assert result.exit_code == 0, result.output
+    result = runner.invoke(cli, ["--data-dir", str(data_dir), "compute", "--year", "2024"])
+    assert result.exit_code == 0, result.output
 
     out_dir = tmp_path / "export"
     result = runner.invoke(cli, [
@@ -276,7 +381,8 @@ def test_lots_with_data(data_dir, tmp_path):
     _write_etrade_csv(csv_path)
 
     runner = CliRunner()
-    runner.invoke(cli, ["--data-dir", str(data_dir), "import-trades", "--file", str(csv_path)])
+    result = runner.invoke(cli, ["--data-dir", str(data_dir), "import-trades", "--file", str(csv_path)])
+    assert result.exit_code == 0, result.output
     result = runner.invoke(cli, ["--data-dir", str(data_dir), "lots"])
     assert result.exit_code == 0
     assert "lot-1" in result.output
@@ -297,8 +403,10 @@ def test_status_with_data(data_dir, tmp_path):
     _write_etrade_csv(csv_path)
 
     runner = CliRunner()
-    runner.invoke(cli, ["--data-dir", str(data_dir), "import-trades", "--file", str(csv_path)])
-    runner.invoke(cli, ["--data-dir", str(data_dir), "compute", "--year", "2024"])
+    result = runner.invoke(cli, ["--data-dir", str(data_dir), "import-trades", "--file", str(csv_path)])
+    assert result.exit_code == 0, result.output
+    result = runner.invoke(cli, ["--data-dir", str(data_dir), "compute", "--year", "2024"])
+    assert result.exit_code == 0, result.output
 
     result = runner.invoke(cli, ["--data-dir", str(data_dir), "status"])
     assert result.exit_code == 0
