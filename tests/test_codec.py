@@ -129,3 +129,27 @@ def test_empty_list():
 def test_plain_values_passthrough():
     assert decode(int, "42") == 42
     assert decode(str, '"hello"') == "hello"
+
+
+def test_decode_none():
+    """_reconstruct returns None when data is None."""
+    from fbtc_taxgrinder.db.codec import _reconstruct
+    assert _reconstruct(Decimal, None) is None
+
+
+def test_lot_without_events_roundtrip():
+    """Lot with empty events list round-trips correctly."""
+    lot = Lot(
+        id="lot-1",
+        purchase_date=date(2024, 1, 25),
+        original_shares=Decimal("10"),
+        price_per_share=Decimal("50.00"),
+        total_cost=Decimal("500.00"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="test.csv",
+        events=[],
+    )
+    text = encode(lot)
+    loaded = decode(Lot, text)
+    assert loaded.events == []
+    assert loaded.id == "lot-1"
