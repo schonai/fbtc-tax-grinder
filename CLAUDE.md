@@ -6,7 +6,7 @@ FBTC Tax Grinder is a Python CLI that computes IRS-reportable WHFIT tax lots for
 
 ```bash
 # Install (editable mode with dev deps)
-pip install -e ".[dev]"
+pip3 install -e ".[dev]"
 
 # Run all tests
 pytest

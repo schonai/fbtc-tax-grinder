@@ -6,11 +6,13 @@ Implements Fidelity's official 2025 grantor trust 6-step gain/loss and basis cal
 
 ## Installation
 
-```bash
-pip install -e ".[dev]"
-```
-
 Requires Python 3.12+.
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip3 install -e ".[dev]"
+```
 
 ## Usage
 
@@ -25,8 +27,15 @@ fbtc-taxgrinder import-proceeds --file path/to/fidelity-whfit-2025.pdf
 From a URL:
 
 ```bash
-fbtc-taxgrinder import-proceeds --url https://example.com/fidelity-whfit-2025.pdf
+fbtc-taxgrinder import-proceeds --url https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/research/1185828.2.0_WHFIT%20Annual%20Stmt%20UDA_FBTC_2025.pdf
 ```
+
+Fidelity publishes WHFIT annual statements for each tax year:
+
+| Tax Year | PDF URL |
+|----------|---------|
+| 2024 | https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/research/1185828.1.0-FBTCWHFITAnnualStmt2024.pdf |
+| 2025 | https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/research/1185828.2.0_WHFIT%20Annual%20Stmt%20UDA_FBTC_2025.pdf |
 
 ### 2. Import trades from ETrade
 
