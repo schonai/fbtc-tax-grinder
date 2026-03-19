@@ -27,7 +27,6 @@ def compute_period(
     shares: Decimal,
     adj_btc: Decimal,
     adj_basis: Decimal,
-    original_total_cost: Decimal,
     monthly_btc_sold_per_share: Decimal,
     monthly_proceeds_per_share_usd: Decimal,
 ) -> PeriodResult:
@@ -50,8 +49,8 @@ def compute_period(
     if monthly_btc_sold_per_share != 0:
         btc_sold_per_share = proration * monthly_btc_sold_per_share
         total_btc_sold = btc_sold_per_share * shares
-        # Step 3
-        cost_basis_of_sold = (total_btc_sold / adj_btc) * original_total_cost
+        # Step 3: use adj_basis (matched pair with adj_btc)
+        cost_basis_of_sold = (total_btc_sold / adj_btc) * adj_basis
 
     # Step 4
     expense_per_share = proration * monthly_proceeds_per_share_usd
@@ -148,7 +147,7 @@ def compute_lot_month(inp: LotMonthInput) -> LotMonthOutput | None:
             shares=shares,
             adj_btc=adj_btc,
             adj_basis=adj_basis,
-            original_total_cost=inp.lot.total_cost,
+
             monthly_btc_sold_per_share=inp.month_proceeds.btc_sold_per_share,
             monthly_proceeds_per_share_usd=inp.month_proceeds.proceeds_per_share_usd,
         )
@@ -182,7 +181,7 @@ def compute_lot_month(inp: LotMonthInput) -> LotMonthOutput | None:
                 shares=shares,
                 adj_btc=adj_btc,
                 adj_basis=adj_basis,
-                original_total_cost=inp.lot.total_cost,
+    
                 monthly_btc_sold_per_share=inp.month_proceeds.btc_sold_per_share,
                 monthly_proceeds_per_share_usd=inp.month_proceeds.proceeds_per_share_usd,
             )
@@ -224,7 +223,7 @@ def compute_lot_month(inp: LotMonthInput) -> LotMonthOutput | None:
                 shares=shares,
                 adj_btc=adj_btc,
                 adj_basis=adj_basis,
-                original_total_cost=inp.lot.total_cost,
+    
                 monthly_btc_sold_per_share=inp.month_proceeds.btc_sold_per_share,
                 monthly_proceeds_per_share_usd=inp.month_proceeds.proceeds_per_share_usd,
             )

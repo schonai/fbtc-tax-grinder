@@ -12,7 +12,7 @@ def test_compute_period_full_month():
         shares=Decimal("204"),
         adj_btc=Decimal("0.17839392"),       # 0.00087448 * 204
         adj_basis=Decimal("7101.24"),
-        original_total_cost=Decimal("7101.24"),
+
         monthly_btc_sold_per_share=Decimal("0.00000018"),
         monthly_proceeds_per_share_usd=Decimal("0.01070327"),
     )
@@ -33,7 +33,7 @@ def test_compute_period_zero_expense():
         shares=Decimal("204"),
         adj_btc=Decimal("0.17839392"),
         adj_basis=Decimal("7101.24"),
-        original_total_cost=Decimal("7101.24"),
+
         monthly_btc_sold_per_share=Decimal("0"),
         monthly_proceeds_per_share_usd=Decimal("0"),
     )
@@ -52,7 +52,7 @@ def test_compute_period_prorated():
         shares=Decimal("1"),
         adj_btc=Decimal("0.00087437"),
         adj_basis=Decimal("51.3995"),
-        original_total_cost=Decimal("51.3995"),
+
         monthly_btc_sold_per_share=Decimal("0.00000018"),
         monthly_proceeds_per_share_usd=Decimal("0.01070327"),
     )
@@ -72,7 +72,7 @@ def test_compute_period_zero_shares():
         shares=Decimal("0"),
         adj_btc=Decimal("0.001"),
         adj_basis=Decimal("50.00"),
-        original_total_cost=Decimal("50.00"),
+
         monthly_btc_sold_per_share=Decimal("0.00000018"),
         monthly_proceeds_per_share_usd=Decimal("0.01070327"),
     )
@@ -90,7 +90,7 @@ def test_compute_period_btc_sold_zero_proceeds():
         shares=Decimal("10"),
         adj_btc=Decimal("0.0087448"),
         adj_basis=Decimal("500.00"),
-        original_total_cost=Decimal("500.00"),
+
         monthly_btc_sold_per_share=Decimal("0.00000018"),
         monthly_proceeds_per_share_usd=Decimal("0"),
     )
@@ -101,14 +101,14 @@ def test_compute_period_btc_sold_zero_proceeds():
 
 
 def test_compute_period_cost_basis_calculation():
-    """Verify Step 3: cost_basis = (total_btc_sold / adj_btc) * original_total_cost."""
+    """Verify Step 3: cost_basis = (total_btc_sold / adj_btc) * adj_basis."""
     result = compute_period(
         days_held=Decimal("31"),
         days_in_month=Decimal("31"),
         shares=Decimal("204"),
         adj_btc=Decimal("0.17839392"),
         adj_basis=Decimal("7101.24"),
-        original_total_cost=Decimal("7101.24"),
+
         monthly_btc_sold_per_share=Decimal("0.00000018"),
         monthly_proceeds_per_share_usd=Decimal("0.01070327"),
     )
@@ -165,7 +165,7 @@ def test_compute_period_gain_loss_sign():
         shares=Decimal("204"),
         adj_btc=Decimal("0.17839392"),
         adj_basis=Decimal("7101.24"),
-        original_total_cost=Decimal("7101.24"),
+
         monthly_btc_sold_per_share=Decimal("0.00000018"),
         monthly_proceeds_per_share_usd=Decimal("0.01070327"),
     )
@@ -182,7 +182,7 @@ def test_compute_period_adj_basis_tracks_cost_basis():
         shares=Decimal("204"),
         adj_btc=Decimal("0.17839392"),
         adj_basis=adj_basis,
-        original_total_cost=Decimal("7101.24"),
+
         monthly_btc_sold_per_share=Decimal("0.00000018"),
         monthly_proceeds_per_share_usd=Decimal("0.01070327"),
     )
@@ -197,12 +197,31 @@ def test_compute_period_single_share():
         shares=Decimal("1"),
         adj_btc=Decimal("0.00087448"),
         adj_basis=Decimal("34.81"),
-        original_total_cost=Decimal("34.81"),
+
         monthly_btc_sold_per_share=Decimal("0.00000018"),
         monthly_proceeds_per_share_usd=Decimal("0.01070327"),
     )
     assert result.total_btc_sold == Decimal("0.00000018")
     assert result.total_expense == Decimal("0.01070327")
+
+
+def test_cost_basis_uses_adj_basis_not_original():
+    """Step 3 must use adj_basis (not original cost) for correct multi-year behavior.
+    When adj_basis < original cost, using original cost would overstate cost_basis."""
+    # Simulate year 2: adj values are less than original
+    result = compute_period(
+        days_held=Decimal("31"),
+        days_in_month=Decimal("31"),
+        shares=Decimal("100"),
+        adj_btc=Decimal("0.08"),       # reduced from original 0.0874
+        adj_basis=Decimal("4500.00"),  # reduced from original 5000.00
+        monthly_btc_sold_per_share=Decimal("0.00000018"),
+        monthly_proceeds_per_share_usd=Decimal("0.01070327"),
+    )
+    total_btc_sold = Decimal("0.00000018") * Decimal("100")
+    # Should use adj_basis=4500, NOT some original cost
+    expected = (total_btc_sold / Decimal("0.08")) * Decimal("4500.00")
+    assert result.cost_basis_of_sold == expected
 
 
 def test_sell_then_full_month_state_chain():
