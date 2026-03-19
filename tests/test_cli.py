@@ -304,3 +304,55 @@ def test_status_with_data(data_dir, tmp_path):
     assert result.exit_code == 0
     assert "1 lots" in result.output
     assert "2024" in result.output
+
+
+def test_e2e_workflow(data_dir, tmp_path):
+    """Full workflow: seed proceeds, import trades, compute, export, re-compute."""
+    runner = CliRunner()
+
+    # Manually seed proceeds (skip PDF parsing for this test)
+    _save_test_proceeds(data_dir)
+
+    # Create a minimal ETrade CSV
+    csv_path = tmp_path / "trades.csv"
+    _write_etrade_csv(csv_path)
+
+    # Import trades
+    result = runner.invoke(cli, [
+        "--data-dir", str(data_dir),
+        "import-trades", "--file", str(csv_path),
+    ])
+    assert result.exit_code == 0, result.output
+    assert "1 new lots" in result.output
+
+    # Compute
+    result = runner.invoke(cli, [
+        "--data-dir", str(data_dir),
+        "compute", "--year", "2024",
+    ])
+    assert result.exit_code == 0, result.output
+
+    # Export
+    output_dir = tmp_path / "output"
+    result = runner.invoke(cli, [
+        "--data-dir", str(data_dir),
+        "export", "--year", "2024", "--format", "csv",
+        "--output", str(output_dir),
+    ])
+    assert result.exit_code == 0, result.output
+    assert (output_dir / "2024_monthly.csv").exists()
+    assert (output_dir / "2024_summary.csv").exists()
+
+    # Verify skip on re-compute
+    result = runner.invoke(cli, [
+        "--data-dir", str(data_dir),
+        "compute", "--year", "2024",
+    ])
+    assert "already computed" in result.output
+
+    # Verify --force recomputes
+    result = runner.invoke(cli, [
+        "--data-dir", str(data_dir),
+        "compute", "--year", "2024", "--force",
+    ])
+    assert result.exit_code == 0
