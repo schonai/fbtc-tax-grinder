@@ -336,7 +336,7 @@ def test_e2e_workflow(data_dir, tmp_path):
     output_dir = tmp_path / "output"
     result = runner.invoke(cli, [
         "--data-dir", str(data_dir),
-        "export", "--year", "2024", "--format", "csv",
+        "export", "--year", "2024",
         "--output", str(output_dir),
     ])
     assert result.exit_code == 0, result.output

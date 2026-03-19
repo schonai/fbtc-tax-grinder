@@ -20,6 +20,17 @@ def _data_dir(ctx: click.Context) -> Path:
     return ctx.obj["data_dir"]
 
 
+def _int_stems(directory: Path) -> list[int]:
+    """Extract integer stems from .json files, skipping non-numeric names."""
+    results = []
+    for f in directory.glob("*.json"):
+        try:
+            results.append(int(f.stem))
+        except ValueError:
+            continue
+    return results
+
+
 @click.group()
 @click.option(
     "--data-dir",
@@ -135,14 +146,18 @@ def import_trades(ctx: click.Context, file_path: str) -> None:
     # Process sells
     new_sells = 0
     for sell in parsed.sells:
-        matched_lot = match_sell_to_lot(
-            existing_lots,
-            sell_shares=sell.shares,
-            sell_date=sell.date,
-        )
+        try:
+            matched_lot = match_sell_to_lot(
+                existing_lots,
+                sell_shares=sell.shares,
+                sell_date=sell.date,
+            )
+        except ValueError as e:
+            raise click.ClickException(str(e))
         # Check idempotency: skip if this sell already recorded
         already_exists = any(
             e.date == sell.date and e.shares == sell.shares
+            and e.price_per_share == sell.price_per_share
             for e in matched_lot.events
         )
         if already_exists:
@@ -205,13 +220,16 @@ def compute(ctx: click.Context, year: int, force: bool,
     if year > min(lot.purchase_date.year for lot in all_lots):
         prior = state_db.load(dd, year - 1)
 
-    result = compute_year(
-        lots=all_lots,
-        proceeds=yp,
-        prior_state=prior,
-        year=year,
-        holding_mode=holding_mode,
-    )
+    try:
+        result = compute_year(
+            lots=all_lots,
+            proceeds=yp,
+            prior_state=prior,
+            year=year,
+            holding_mode=holding_mode,
+        )
+    except ValueError as e:
+        raise click.ClickException(str(e))
 
     # Save results and year-end state
     results_db.save(dd, result)
@@ -227,10 +245,9 @@ def compute(ctx: click.Context, year: int, force: bool,
 
 @cli.command()
 @click.option("--year", required=True, type=int)
-@click.option("--format", "fmt", default="csv", type=click.Choice(["csv"]))
 @click.option("--output", "output_dir", required=True, type=click.Path(path_type=Path))
 @click.pass_context
-def export(ctx: click.Context, year: int, fmt: str, output_dir: Path) -> None:
+def export(ctx: click.Context, year: int, output_dir: Path) -> None:
     """Export computed results."""
     dd = _data_dir(ctx)
     yr = results_db.load(dd, year)
@@ -274,7 +291,7 @@ def status(ctx: click.Context) -> None:
     # Check proceeds years
     proceeds_dir = dd / "proceeds"
     if proceeds_dir.exists():
-        years = sorted(int(f.stem) for f in proceeds_dir.glob("*.json"))
+        years = sorted(_int_stems(proceeds_dir))
         click.echo(f"Proceeds: {', '.join(str(y) for y in years) if years else 'none'}")
     else:
         click.echo("Proceeds: none")
@@ -282,7 +299,7 @@ def status(ctx: click.Context) -> None:
     # Check computed years
     results_dir = dd / "results"
     if results_dir.exists():
-        years = sorted(int(f.stem) for f in results_dir.glob("*.json"))
+        years = sorted(_int_stems(results_dir))
         click.echo(f"Computed: {', '.join(str(y) for y in years) if years else 'none'}")
     else:
         click.echo("Computed: none")
