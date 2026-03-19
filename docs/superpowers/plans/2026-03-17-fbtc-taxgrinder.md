@@ -2,6 +2,16 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+**Status (2026-03-19):** Tasks 1-5 complete (54 tests, 97% coverage). Next: Task 6 (compute_year).
+| Task | Status | Coverage |
+|------|--------|----------|
+| 1. Project Scaffolding | ✅ | — |
+| 2. Data Models | ✅ | 100% |
+| 3. JSON Data Access Layer | ✅ | 96% |
+| 4. Core Engine — Single Period | ✅ | 99% |
+| 5. Engine — Monthly + Sells | ✅ | 99% |
+| 6-14 | Not started | — |
+
 **Goal:** Build a Python CLI tool that computes IRS-reportable FBTC tax lots using Fidelity's 6-step WHFIT method, replacing an error-prone Google Sheets implementation.
 
 **Architecture:** Layered Python package — pure computation engine (no I/O), JSON data access layer, parsers for ETrade CSV and Fidelity PDF, Click CLI as thin glue. All arithmetic uses `Decimal`. Designed so a web UI can replace the CLI without touching engine/db layers.
@@ -70,7 +80,7 @@ fbtc-taxgrinder/
 
 ---
 
-## Task 1: Project Scaffolding
+## Task 1: Project Scaffolding ✅
 
 **Files:**
 - Create: `pyproject.toml`
@@ -82,7 +92,7 @@ fbtc-taxgrinder/
 - Create: `fbtc_taxgrinder/export/__init__.py`
 - Create: `fbtc_taxgrinder/cli/__init__.py`
 
-- [ ] **Step 1: Create pyproject.toml**
+- [x] **Step 1: Create pyproject.toml**
 
 ```toml
 [build-system]
@@ -109,7 +119,7 @@ testpaths = ["tests"]
 dev = ["pytest>=7.0", "pytest-cov>=4.0"]
 ```
 
-- [ ] **Step 2: Create empty __init__.py files and main.py**
+- [x] **Step 2: Create empty __init__.py files and main.py**
 
 `main.py`:
 ```python
@@ -126,7 +136,7 @@ if __name__ == "__main__":
 `fbtc_taxgrinder/export/__init__.py`: empty
 `fbtc_taxgrinder/cli/__init__.py`: empty
 
-- [ ] **Step 3: Create minimal CLI placeholder**
+- [x] **Step 3: Create minimal CLI placeholder**
 
 `fbtc_taxgrinder/cli/commands.py`:
 ```python
@@ -139,28 +149,30 @@ def cli():
     pass
 ```
 
-- [ ] **Step 4: Install in dev mode and verify**
+- [x] **Step 4: Install in dev mode and verify**
 
 Run: `pip install -e ".[dev]"`
 Run: `fbtc-taxgrinder --help`
 Expected: Shows help with no commands yet.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pyproject.toml main.py fbtc_taxgrinder/
 git commit -m "scaffold: project structure with click CLI entry point"
 ```
 
+> **Deviations:** Fixed build-backend from `setuptools.backends._legacy:_Backend` (doesn't exist) to `setuptools.build_meta`. Added `.gitignore` and `.venv`.
+
 ---
 
-## Task 2: Data Models
+## Task 2: Data Models ✅
 
 **Files:**
 - Create: `fbtc_taxgrinder/models.py`
 - Create: `tests/test_models.py`
 
-- [ ] **Step 1: Write failing test for models**
+- [x] **Step 1: Write failing test for models**
 
 `tests/test_models.py`:
 ```python
@@ -243,12 +255,12 @@ def test_month_proceeds():
     assert mp.btc_sold_per_share == Decimal("0.00000018")
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pytest tests/test_models.py -v`
 Expected: FAIL — `ModuleNotFoundError`
 
-- [ ] **Step 3: Implement models**
+- [x] **Step 3: Implement models**
 
 `fbtc_taxgrinder/models.py`:
 ```python
@@ -346,17 +358,17 @@ class YearResult:
     total_cost_basis_of_expense: Decimal
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pytest tests/test_models.py -v`
 Expected: All PASS
 
-- [ ] **Step 5: Check coverage**
+- [x] **Step 5: Check coverage**
 
 Run: `pytest tests/test_models.py --cov=fbtc_taxgrinder.models --cov-report=term-missing --cov-fail-under=90`
 Expected: 90%+ coverage. If any uncovered lines, add tests before committing.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add fbtc_taxgrinder/models.py tests/test_models.py
@@ -365,7 +377,9 @@ git commit -m "feat: add data models for lots, proceeds, results, and state"
 
 ---
 
-## Task 3: JSON Data Access Layer
+## Task 3: JSON Data Access Layer ✅
+
+> **Deviations:** Replaced hand-written per-type serializers with a generic `db/codec.py` using `dataclasses.asdict()` + `get_type_hints()` reconstruction. All db modules are thin file I/O wrappers. Added `tests/test_codec.py` for pure serialization tests. DB tests use mocks instead of filesystem per project convention.
 
 **Files:**
 - Create: `fbtc_taxgrinder/db/lots.py`
@@ -375,7 +389,7 @@ git commit -m "feat: add data models for lots, proceeds, results, and state"
 - Create: `tests/conftest.py`
 - Create: `tests/test_db.py`
 
-- [ ] **Step 1: Write failing tests for db layer**
+- [x] **Step 1: Write failing tests for db layer**
 
 `tests/conftest.py`:
 ```python
@@ -510,12 +524,12 @@ def test_results_roundtrip(data_dir):
     assert loaded.lot_results["lot-1"][0].adj_btc == Decimal("0.17835720")
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pytest tests/test_db.py -v`
 Expected: FAIL — `ModuleNotFoundError`
 
-- [ ] **Step 3: Implement db/lots.py**
+- [x] **Step 3: Implement db/lots.py**
 
 ```python
 from __future__ import annotations
@@ -588,7 +602,7 @@ def load(data_dir: Path) -> list[Lot]:
         return [_dict_to_lot(d) for d in json.load(f)]
 ```
 
-- [ ] **Step 4: Implement db/proceeds.py**
+- [x] **Step 4: Implement db/proceeds.py**
 
 ```python
 from __future__ import annotations
@@ -641,7 +655,7 @@ def load(data_dir: Path, year: int) -> YearProceeds | None:
     return YearProceeds(daily=daily, monthly=monthly, source=data["source"])
 ```
 
-- [ ] **Step 5: Implement db/state.py**
+- [x] **Step 5: Implement db/state.py**
 
 ```python
 from __future__ import annotations
@@ -683,7 +697,7 @@ def load(data_dir: Path, year: int) -> dict[str, LotState] | None:
     }
 ```
 
-- [ ] **Step 6: Implement db/results.py**
+- [x] **Step 6: Implement db/results.py**
 
 ```python
 from __future__ import annotations
@@ -803,17 +817,17 @@ def load(data_dir: Path, year: int) -> YearResult | None:
     )
 ```
 
-- [ ] **Step 7: Run tests to verify they pass**
+- [x] **Step 7: Run tests to verify they pass**
 
 Run: `pytest tests/test_db.py -v`
 Expected: All PASS
 
-- [ ] **Step 8: Check coverage**
+- [x] **Step 8: Check coverage**
 
 Run: `pytest tests/test_db.py --cov=fbtc_taxgrinder.db --cov-report=term-missing --cov-fail-under=90`
 Expected: 90%+ coverage on all db modules. Add tests for any uncovered branches.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add fbtc_taxgrinder/db/ tests/conftest.py tests/test_db.py
@@ -822,7 +836,7 @@ git commit -m "feat: add JSON data access layer for lots, proceeds, results, sta
 
 ---
 
-## Task 4: Core Engine — Single Period Computation
+## Task 4: Core Engine — Single Period Computation ✅
 
 The foundational computation: Steps 1-6 for a single period (a contiguous span of days within a month). Everything else builds on this.
 
@@ -830,7 +844,7 @@ The foundational computation: Steps 1-6 for a single period (a contiguous span o
 - Create: `fbtc_taxgrinder/engine/compute.py`
 - Create: `tests/test_compute.py`
 
-- [ ] **Step 1: Write failing test for compute_period**
+- [x] **Step 1: Write failing test for compute_period**
 
 `tests/test_compute.py`:
 ```python
@@ -898,12 +912,12 @@ def test_compute_period_prorated():
     assert result.total_expense == expected_expense
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pytest tests/test_compute.py -v`
 Expected: FAIL — `ModuleNotFoundError`
 
-- [ ] **Step 3: Implement compute_period**
+- [x] **Step 3: Implement compute_period**
 
 `fbtc_taxgrinder/engine/compute.py`:
 ```python
@@ -977,17 +991,17 @@ def compute_period(
     )
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pytest tests/test_compute.py -v`
 Expected: All PASS
 
-- [ ] **Step 5: Check coverage**
+- [x] **Step 5: Check coverage**
 
 Run: `pytest tests/test_compute.py --cov=fbtc_taxgrinder.engine.compute --cov-report=term-missing --cov-fail-under=90`
 Expected: 90%+ coverage. Add tests for uncovered branches.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add fbtc_taxgrinder/engine/compute.py tests/test_compute.py
@@ -996,7 +1010,9 @@ git commit -m "feat: implement compute_period — Steps 1-6 for a single period"
 
 ---
 
-## Task 5: Engine — Monthly Computation With Sell Events
+## Task 5: Engine — Monthly Computation With Sell Events ✅
+
+> **Deviations:** Fixed Step 3 bug from plan: `compute_period` now uses `adj_basis` instead of `original_total_cost` for cost basis calculation, matching the WHFIT spec requirement that btc/basis pairs stay matched. Removed `original_total_cost` parameter. Added extensive edge case tests (sell on day 1, sell on last day, sell in purchase month, same-day sells, proportional disposition verification, full liquidation zeroes state, state chaining across months).
 
 Build on `compute_period` to handle a full month for a lot, including mid-month sells (3-phase split).
 
@@ -1005,7 +1021,7 @@ Build on `compute_period` to handle a full month for a lot, including mid-month 
 - Create: `tests/test_sells.py`
 - Create: `tests/test_proration.py`
 
-- [ ] **Step 1: Write failing tests for compute_lot_month**
+- [x] **Step 1: Write failing tests for compute_lot_month**
 
 `tests/test_proration.py`:
 ```python
@@ -1288,12 +1304,12 @@ def test_no_sell_event_normal_month():
     assert len(result.dispositions) == 0
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pytest tests/test_proration.py tests/test_sells.py -v`
 Expected: FAIL — `ImportError` for `compute_lot_month`
 
-- [ ] **Step 3: Implement compute_lot_month**
+- [x] **Step 3: Implement compute_lot_month**
 
 Add to `fbtc_taxgrinder/engine/compute.py`:
 
@@ -1485,17 +1501,17 @@ def compute_lot_month(inp: LotMonthInput) -> LotMonthOutput | None:
     )
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pytest tests/test_proration.py tests/test_sells.py tests/test_compute.py -v`
 Expected: All PASS
 
-- [ ] **Step 5: Check coverage**
+- [x] **Step 5: Check coverage**
 
 Run: `pytest tests/test_proration.py tests/test_sells.py tests/test_compute.py --cov=fbtc_taxgrinder.engine.compute --cov-report=term-missing --cov-fail-under=90`
 Expected: 90%+ coverage on compute module including sell paths. Add tests for uncovered branches.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add fbtc_taxgrinder/engine/compute.py tests/test_proration.py tests/test_sells.py
