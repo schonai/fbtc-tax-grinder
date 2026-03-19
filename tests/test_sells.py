@@ -1,5 +1,6 @@
 from decimal import Decimal
 from datetime import date
+import pytest
 from fbtc_taxgrinder.models import Lot, LotEvent, MonthProceeds
 from fbtc_taxgrinder.engine.compute import HoldingMode, compute_lot_month, LotMonthInput
 
@@ -294,73 +295,6 @@ def test_full_liquidation_zero_expense():
     assert result.month_result.total_btc_sold == Decimal("0")
 
 
-def test_sell_expense_only_on_surviving_shares():
-    """Expense is computed only on shares remaining after all sells, for the full month."""
-    lot = Lot(
-        id="lot-x", purchase_date=date(2024, 1, 25),
-        original_shares=Decimal("100"), price_per_share=Decimal("50.00"),
-        total_cost=Decimal("5000.00"),
-        btc_per_share_on_purchase=Decimal("0.00087448"),
-        source_file="test.csv",
-        events=[
-            LotEvent(
-                type="sell", date=date(2025, 3, 10),
-                shares=Decimal("60"), price_per_share=Decimal("60.00"),
-                proceeds=Decimal("3600.00"), disposition_id="lot-x-sell-1",
-            ),
-        ],
-    )
-    adj_btc = Decimal("0.08700000")
-    adj_basis = Decimal("4950.00")
-    proceeds_per_share = Decimal("0.01509769")
-
-    result = compute_lot_month(LotMonthInput(
-        lot=lot, year=2025, month=3,
-        adj_btc=adj_btc,
-        adj_basis=adj_basis,
-        shares=Decimal("100"),
-        month_proceeds=MonthProceeds(
-            btc_sold_per_share=Decimal("0.00000018"),
-            proceeds_per_share_usd=proceeds_per_share,
-        ),
-    ))
-    assert result is not None
-    # 40 surviving shares get full month expense
-    assert result.month_result.total_expense == Decimal("40") * proceeds_per_share
-
-
-def test_full_liquidation_zero_expense():
-    """Selling all shares means zero expense for the month."""
-    lot = Lot(
-        id="lot-x", purchase_date=date(2024, 1, 25),
-        original_shares=Decimal("10"), price_per_share=Decimal("50.00"),
-        total_cost=Decimal("500.00"),
-        btc_per_share_on_purchase=Decimal("0.00087448"),
-        source_file="test.csv",
-        events=[
-            LotEvent(
-                type="sell", date=date(2025, 3, 15),
-                shares=Decimal("10"), price_per_share=Decimal("60.00"),
-                proceeds=Decimal("600.00"), disposition_id="lot-x-sell-1",
-            ),
-        ],
-    )
-    result = compute_lot_month(LotMonthInput(
-        lot=lot, year=2025, month=3,
-        adj_btc=Decimal("0.00870000"),
-        adj_basis=Decimal("498.00"),
-        shares=Decimal("10"),
-        month_proceeds=MonthProceeds(
-            btc_sold_per_share=Decimal("0.00000018"),
-            proceeds_per_share_usd=Decimal("0.01509769"),
-        ),
-    ))
-    assert result is not None
-    assert result.month_result.total_expense == Decimal("0")
-    assert result.month_result.gain_loss == Decimal("0")
-    assert result.month_result.total_btc_sold == Decimal("0")
-
-
 def test_sell_events_from_other_months_ignored():
     """Sell events in different months should not affect this month."""
     lot = Lot(
@@ -570,3 +504,103 @@ def test_prorate_sell_month_phases():
         ),
     ))
     assert result.month_result.total_expense > full_result.month_result.total_expense
+
+
+def test_prorate_sell_includes_sell_date_in_post_phase():
+    """C1: In PRORATE mode, post_days includes the sell date itself.
+
+    Sell on Mar 16 with month_end Mar 31: post_days = (31-16) + 1 = 16.
+    A sell on the last day (Mar 31) should produce post_days = 1.
+    """
+    lot = Lot(
+        id="lot-x", purchase_date=date(2024, 1, 25),
+        original_shares=Decimal("100"), price_per_share=Decimal("50.00"),
+        total_cost=Decimal("5000.00"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="test.csv",
+        events=[
+            LotEvent(
+                type="sell", date=date(2025, 3, 31),
+                shares=Decimal("50"), price_per_share=Decimal("60.00"),
+                proceeds=Decimal("3000.00"), disposition_id="lot-x-sell-1",
+            ),
+        ],
+    )
+    # In PRORATE mode, sell on last day: post_days = (31-31)+1 = 1
+    # With 50 surviving shares and 1/31 proration, expense should be nonzero
+    result = compute_lot_month(LotMonthInput(
+        lot=lot, year=2025, month=3,
+        adj_btc=Decimal("0.08700000"),
+        adj_basis=Decimal("4950.00"),
+        shares=Decimal("100"),
+        month_proceeds=MonthProceeds(
+            btc_sold_per_share=Decimal("0.00000018"),
+            proceeds_per_share_usd=Decimal("0.01509769"),
+        ),
+    ), holding_mode=HoldingMode.PRORATE)
+    assert result is not None
+    assert result.new_state.shares == Decimal("50")
+    # Post-sell expense should be nonzero (1 day of expense on 50 shares)
+    # Pre-sell: 30/31 * 100 shares; Post-sell: 1/31 * 50 shares
+    expected_post_expense = (Decimal("1") / Decimal("31")) * Decimal("0.01509769") * Decimal("50")
+    expected_pre_expense = (Decimal("30") / Decimal("31")) * Decimal("0.01509769") * Decimal("100")
+    # Total expense should include both phases
+    assert result.month_result.total_expense > expected_pre_expense
+
+
+def test_sell_exceeds_remaining_shares_full_month():
+    """C3: Selling more shares than available raises ValueError in FULL_MONTH mode."""
+    lot = Lot(
+        id="lot-x", purchase_date=date(2024, 1, 25),
+        original_shares=Decimal("100"), price_per_share=Decimal("50.00"),
+        total_cost=Decimal("5000.00"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="test.csv",
+        events=[
+            LotEvent(
+                type="sell", date=date(2025, 3, 15),
+                shares=Decimal("60"), price_per_share=Decimal("60.00"),
+                proceeds=Decimal("3600.00"), disposition_id="lot-x-sell-1",
+            ),
+        ],
+    )
+    with pytest.raises(ValueError, match="exceeds remaining"):
+        compute_lot_month(LotMonthInput(
+            lot=lot, year=2025, month=3,
+            adj_btc=Decimal("0.08700000"),
+            adj_basis=Decimal("4950.00"),
+            shares=Decimal("50"),  # Only 50 shares but selling 60
+            month_proceeds=MonthProceeds(
+                btc_sold_per_share=Decimal("0.00000018"),
+                proceeds_per_share_usd=Decimal("0.01509769"),
+            ),
+        ))
+
+
+def test_sell_exceeds_remaining_shares_prorate():
+    """C3: Selling more shares than available raises ValueError in PRORATE mode."""
+    lot = Lot(
+        id="lot-x", purchase_date=date(2024, 1, 25),
+        original_shares=Decimal("100"), price_per_share=Decimal("50.00"),
+        total_cost=Decimal("5000.00"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="test.csv",
+        events=[
+            LotEvent(
+                type="sell", date=date(2025, 3, 15),
+                shares=Decimal("60"), price_per_share=Decimal("60.00"),
+                proceeds=Decimal("3600.00"), disposition_id="lot-x-sell-1",
+            ),
+        ],
+    )
+    with pytest.raises(ValueError, match="exceeds remaining"):
+        compute_lot_month(LotMonthInput(
+            lot=lot, year=2025, month=3,
+            adj_btc=Decimal("0.08700000"),
+            adj_basis=Decimal("4950.00"),
+            shares=Decimal("50"),  # Only 50 shares but selling 60
+            month_proceeds=MonthProceeds(
+                btc_sold_per_share=Decimal("0.00000018"),
+                proceeds_per_share_usd=Decimal("0.01509769"),
+            ),
+        ), holding_mode=HoldingMode.PRORATE)

@@ -337,6 +337,29 @@ def test_holding_mode_flag():
     assert r_full.month_result.total_expense > r_prorated.month_result.total_expense
 
 
+def test_compute_period_zero_adj_btc():
+    """C2: When adj_btc is zero but monthly_btc_sold_per_share is nonzero,
+    should return zeros instead of dividing by zero."""
+    result = compute_period(
+        days_held=Decimal("31"),
+        days_in_month=Decimal("31"),
+        shares=Decimal("100"),
+        adj_btc=Decimal("0"),
+        adj_basis=Decimal("500.00"),
+        monthly_btc_sold_per_share=Decimal("0.00000018"),
+        monthly_proceeds_per_share_usd=Decimal("0.01070327"),
+    )
+    assert result.total_btc_sold == Decimal("0")
+    assert result.cost_basis_of_sold == Decimal("0")
+    # Expense should still be computed (it doesn't depend on adj_btc)
+    assert result.total_expense == Decimal("0.01070327") * Decimal("100")
+    # gain_loss = expense - cost_basis_of_sold = expense - 0
+    assert result.gain_loss == result.total_expense
+    # adj_btc should remain 0 (0 - 0)
+    assert result.adj_btc == Decimal("0")
+    assert result.adj_basis == Decimal("500.00")
+
+
 def test_compute_year_chain_validation_error():
     """Lot from 2024 computing 2026 without 2025 state should error."""
     lot = Lot(

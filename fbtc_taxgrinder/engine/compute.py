@@ -7,7 +7,7 @@ from decimal import Decimal
 from enum import Enum
 
 from fbtc_taxgrinder.models import (
-    Disposition, Lot, LotState, MonthProceeds, MonthResult, YearProceeds, YearResult,
+    Disposition, Lot, LotEvent, LotState, MonthProceeds, MonthResult, YearProceeds, YearResult,
 )
 
 
@@ -53,10 +53,14 @@ def compute_period(
     total_btc_sold = Decimal("0")
     cost_basis_of_sold = Decimal("0")
     if monthly_btc_sold_per_share != 0:
-        btc_sold_per_share = proration * monthly_btc_sold_per_share
-        total_btc_sold = btc_sold_per_share * shares
-        # Step 3: use adj_basis (matched pair with adj_btc)
-        cost_basis_of_sold = (total_btc_sold / adj_btc) * adj_basis
+        if adj_btc == 0:
+            total_btc_sold = Decimal("0")
+            cost_basis_of_sold = Decimal("0")
+        else:
+            btc_sold_per_share = proration * monthly_btc_sold_per_share
+            total_btc_sold = btc_sold_per_share * shares
+            # Step 3: use adj_basis (matched pair with adj_btc)
+            cost_basis_of_sold = (total_btc_sold / adj_btc) * adj_basis
 
     # Step 4
     expense_per_share = proration * monthly_proceeds_per_share_usd
@@ -111,7 +115,7 @@ class _SellPhaseResult:
 
 def _handle_sells_full_month(
     *,
-    sell_events: list,
+    sell_events: list[LotEvent],
     inp: LotMonthInput,
     adj_btc: Decimal,
     adj_basis: Decimal,
@@ -127,6 +131,10 @@ def _handle_sells_full_month(
     dispositions: list[Disposition] = []
 
     for event in sell_events:
+        if shares <= 0 or event.shares > shares:
+            raise ValueError(
+                f"Sell of {event.shares} shares exceeds remaining {shares} shares for lot {inp.lot.id}"
+            )
         disposed_btc = adj_btc * (event.shares / shares)
         disposed_basis = adj_basis * (event.shares / shares)
         dispositions.append(Disposition(
@@ -140,6 +148,9 @@ def _handle_sells_full_month(
         adj_basis -= disposed_basis
         shares -= event.shares
 
+    # Expense is computed only on surviving shares (after all dispositions).
+    # This matches observed 1099 behavior: disposed shares do not generate
+    # trust expense; only shares still held at month-end participate.
     if shares > 0:
         pr = compute_period(
             days_held=full_days_held, days_in_month=days_in_month,
@@ -164,7 +175,7 @@ def _handle_sells_full_month(
 
 def _handle_sells_prorate(
     *,
-    sell_events: list,
+    sell_events: list[LotEvent],
     inp: LotMonthInput,
     adj_btc: Decimal,
     adj_basis: Decimal,
@@ -197,6 +208,10 @@ def _handle_sells_prorate(
             adj_btc = pr.adj_btc
             adj_basis = pr.adj_basis
 
+        if shares <= 0 or event.shares > shares:
+            raise ValueError(
+                f"Sell of {event.shares} shares exceeds remaining {shares} shares for lot {inp.lot.id}"
+            )
         disposed_btc = adj_btc * (event.shares / shares)
         disposed_basis = adj_basis * (event.shares / shares)
         dispositions.append(Disposition(
@@ -212,7 +227,7 @@ def _handle_sells_prorate(
         current_start = event.date
 
     if shares > 0:
-        post_days = Decimal(str((month_end - current_start).days))
+        post_days = Decimal(str((month_end - current_start).days)) + 1
         if post_days > 0:
             pr = compute_period(
                 days_held=post_days, days_in_month=days_in_month,
