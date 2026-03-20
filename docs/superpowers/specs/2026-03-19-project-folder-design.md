@@ -14,7 +14,7 @@ Currently, the CLI requires specifying `--data-dir` for data storage and a separ
 
 **Top-level group (`cli`):**
 - Rename `--data-dir` option to `--project`
-- Make `--project` required (no default value)
+- Make `--project` required (no default value — removes the previous implicit `data/` default, so all invocations must now specify `--project`)
 - Rename context key from `data_dir` to `project_dir`
 - Rename helper `_data_dir()` to `_project_dir()`
 - Auto-create project folder and subdirs: `proceeds/`, `results/`, `state/`, `output/`
@@ -57,12 +57,16 @@ fbtc-taxgrinder --project ./my-2025 export --year 2025
 ### Files Changed
 
 1. **`fbtc_taxgrinder/cli/commands.py`** — Rename option, helper, context key; remove `--output` from export; add `output/` to auto-created subdirs; hardcode export output path
-2. **`tests/`** — Update all references to `--data-dir` / `data_dir` to `--project` / `project_dir`; update export tests that pass `--output`
-3. **`CLAUDE.md`** — Update architecture description if it references `--data-dir` or `--output`
+2. **`tests/conftest.py`** — Rename `data_dir` fixture to `project_dir`; add `output/` to auto-created subdirs in the fixture
+3. **`tests/test_cli.py`** — Update CLI invocations from `--data-dir` to `--project`; update export tests that pass `--output`; rename fixture references from `data_dir` to `project_dir`
+4. **Other test files using the `data_dir` fixture** — Rename fixture parameter to `project_dir`
+
+Note: DB module function signatures (`data_dir` parameter in `lots.py`, `proceeds.py`, etc.) and DB-layer test locals are intentionally left as-is — they are internal implementation details unrelated to the CLI option name.
 
 ### What Does NOT Change
 
 - Internal data format (JSON files, codec)
+- DB module function signatures (internal `data_dir` parameters)
 - Computation engine
 - CSV export logic (only the output path changes)
 - Parser modules
