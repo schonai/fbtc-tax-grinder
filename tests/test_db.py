@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 from fbtc_taxgrinder.db import lots, proceeds, results, state
 from fbtc_taxgrinder.db.codec import encode
 from fbtc_taxgrinder.models import (
-    Lot, LotEvent, LotState, MonthProceeds, MonthResult,
+    Lot, LotEvent, LotState, MonthProceeds, ExpenseResult,
     YearProceeds, YearResult,
 )
 
@@ -165,8 +165,8 @@ class TestResults:
             year=2024,
             lot_results={
                 "lot-1": [
-                    MonthResult(
-                        month=8, days_held=Decimal("31"), days_in_month=Decimal("31"),
+                    ExpenseResult(
+                        sell_date=date(2024, 8, 31), days_held=Decimal("31"), days_in_month=Decimal("31"),
                         shares=Decimal("204"), total_btc_sold=Decimal("0.00003672"),
                         cost_basis_of_sold=Decimal("1.461695179"),
                         total_expense=Decimal("2.18346708"),

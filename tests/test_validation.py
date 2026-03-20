@@ -116,7 +116,7 @@ def test_adj_btc_monotonically_decreases():
     for lot_id, months in result.lot_results.items():
         for i in range(1, len(months)):
             assert months[i].adj_btc <= months[i - 1].adj_btc, (
-                f"{lot_id} month {months[i].month}: adj_btc increased "
+                f"{lot_id} month {months[i].sell_date}: adj_btc increased "
                 f"from {months[i-1].adj_btc} to {months[i].adj_btc}"
             )
 
@@ -127,7 +127,7 @@ def test_adj_basis_monotonically_decreases():
     for lot_id, months in result.lot_results.items():
         for i in range(1, len(months)):
             assert months[i].adj_basis <= months[i - 1].adj_basis, (
-                f"{lot_id} month {months[i].month}: adj_basis increased "
+                f"{lot_id} month {months[i].sell_date}: adj_basis increased "
                 f"from {months[i-1].adj_basis} to {months[i].adj_basis}"
             )
 
@@ -207,11 +207,11 @@ def test_no_negative_values():
     result = _compute_2024()
     for lot_id, months in result.lot_results.items():
         for mr in months:
-            assert mr.adj_btc >= 0, f"{lot_id} month {mr.month}: negative adj_btc"
-            assert mr.adj_basis >= 0, f"{lot_id} month {mr.month}: negative adj_basis"
-            assert mr.total_btc_sold >= 0, f"{lot_id} month {mr.month}: negative total_btc_sold"
-            assert mr.cost_basis_of_sold >= 0, f"{lot_id} month {mr.month}: negative cost_basis"
-            assert mr.total_expense >= 0, f"{lot_id} month {mr.month}: negative total_expense"
+            assert mr.adj_btc >= 0, f"{lot_id} month {mr.sell_date}: negative adj_btc"
+            assert mr.adj_basis >= 0, f"{lot_id} month {mr.sell_date}: negative adj_basis"
+            assert mr.total_btc_sold >= 0, f"{lot_id} month {mr.sell_date}: negative total_btc_sold"
+            assert mr.cost_basis_of_sold >= 0, f"{lot_id} month {mr.sell_date}: negative cost_basis"
+            assert mr.total_expense >= 0, f"{lot_id} month {mr.sell_date}: negative total_expense"
 
 
 def test_deterministic():

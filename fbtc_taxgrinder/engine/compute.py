@@ -7,7 +7,7 @@ from decimal import Decimal
 from enum import Enum
 
 from fbtc_taxgrinder.models import (
-    Disposition, Lot, LotEvent, LotState, MonthProceeds, MonthResult, YearProceeds, YearResult,
+    Disposition, Lot, LotEvent, LotState, MonthProceeds, ExpenseResult, YearProceeds, YearResult,
 )
 
 
@@ -96,7 +96,7 @@ class LotMonthInput:
 
 @dataclass
 class LotMonthOutput:
-    month_result: MonthResult
+    month_result: ExpenseResult
     dispositions: list[Disposition]
     new_state: LotState
 
@@ -317,8 +317,8 @@ def compute_lot_month(inp: LotMonthInput, *, holding_mode: HoldingMode = Holding
             monthly_proceeds_per_share_usd=inp.month_proceeds.proceeds_per_share_usd,
         )
         return LotMonthOutput(
-            month_result=MonthResult(
-                month=inp.month,
+            month_result=ExpenseResult(
+                sell_date=month_end,
                 days_held=full_days_held,
                 days_in_month=days_in_month,
                 shares=shares,
@@ -348,8 +348,8 @@ def compute_lot_month(inp: LotMonthInput, *, holding_mode: HoldingMode = Holding
         )
 
     return LotMonthOutput(
-        month_result=MonthResult(
-            month=inp.month,
+        month_result=ExpenseResult(
+            sell_date=month_end,
             days_held=full_days_held,
             days_in_month=days_in_month,
             shares=inp.shares,
@@ -374,11 +374,12 @@ def compute_year(
     holding_mode: HoldingMode = HoldingMode.FULL_MONTH,
 ) -> YearResult:
     """Compute all lots for a full year, chaining monthly state."""
-    all_lot_results: dict[str, list[MonthResult]] = {}
+    all_lot_results: dict[str, list[ExpenseResult]] = {}
     all_dispositions: list[Disposition] = []
     end_states: dict[str, LotState] = {}
 
     for lot in lots:
+
         # Determine initial state for this lot
         if lot.purchase_date.year == year:
             # New lot this year
@@ -404,7 +405,7 @@ def compute_year(
             end_states[lot.id] = state
             continue
 
-        lot_results: list[MonthResult] = []
+        expense_results: list[ExpenseResult] = []
 
         for month in range(1, 13):
             month_end = _month_end(year, month)
@@ -433,11 +434,11 @@ def compute_year(
             if output is None:
                 continue
 
-            lot_results.append(output.month_result)
+            expense_results.append(output.month_result)
             all_dispositions.extend(output.dispositions)
             state = output.new_state
 
-        all_lot_results[lot.id] = lot_results
+        all_lot_results[lot.id] = expense_results
         end_states[lot.id] = state
 
     # Compute annual summary

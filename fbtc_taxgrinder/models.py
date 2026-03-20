@@ -56,8 +56,8 @@ class YearProceeds:
 
 
 @dataclass
-class MonthResult:
-    month: int
+class ExpenseResult:
+    sell_date: date
     days_held: Decimal
     days_in_month: Decimal
     shares: Decimal
@@ -84,7 +84,7 @@ class Disposition:
 @dataclass
 class YearResult:
     year: int
-    lot_results: dict[str, list[MonthResult]]  # lot_id -> monthly results
+    lot_results: dict[str, list[ExpenseResult]]  # lot_id -> per-sell-date results
     dispositions: list[Disposition]
     end_states: dict[str, LotState]  # lot_id -> year-end state
     total_investment_expense: Decimal

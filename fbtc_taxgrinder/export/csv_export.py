@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 from collections import defaultdict
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
@@ -20,16 +21,16 @@ def export_year_csv(year_result: YearResult, output_dir: Path) -> None:
     with open(monthly_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow([
-            "lot_id", "month", "days_held", "days_in_month", "shares",
+            "lot_id", "sell_date", "days_held", "days_in_month", "shares",
             "total_btc_sold", "cost_basis_of_sold", "total_expense",
             "gain_loss", "adj_btc", "adj_basis",
         ])
         for lot_id, results in sorted(year_result.lot_results.items()):
-            for mr in results:
+            for er in results:
                 writer.writerow([
-                    lot_id, mr.month, mr.days_held, mr.days_in_month,
-                    mr.shares, mr.total_btc_sold, mr.cost_basis_of_sold,
-                    mr.total_expense, mr.gain_loss, mr.adj_btc, mr.adj_basis,
+                    lot_id, er.sell_date.isoformat(), er.days_held, er.days_in_month,
+                    er.shares, er.total_btc_sold, er.cost_basis_of_sold,
+                    er.total_expense, er.gain_loss, er.adj_btc, er.adj_basis,
                 ])
 
     # Dispositions
@@ -47,27 +48,27 @@ def export_year_csv(year_result: YearResult, output_dir: Path) -> None:
                 d.disposed_basis, d.gain_loss,
             ])
 
-    # Summary: monthly aggregates + annual total
-    monthly_agg: dict[int, dict[str, Decimal]] = defaultdict(
+    # Summary: per-sell-date aggregates + annual total
+    date_agg: dict[date, dict[str, Decimal]] = defaultdict(
         lambda: {"investment_expense": Decimal("0"), "cost_basis_of_expense": Decimal("0"), "reportable_gain": Decimal("0")}
     )
     for results in year_result.lot_results.values():
-        for mr in results:
-            monthly_agg[mr.month]["investment_expense"] += mr.total_expense
-            monthly_agg[mr.month]["cost_basis_of_expense"] += mr.cost_basis_of_sold
-            monthly_agg[mr.month]["reportable_gain"] += mr.gain_loss
+        for er in results:
+            date_agg[er.sell_date]["investment_expense"] += er.total_expense
+            date_agg[er.sell_date]["cost_basis_of_expense"] += er.cost_basis_of_sold
+            date_agg[er.sell_date]["reportable_gain"] += er.gain_loss
 
     summary_path = output_dir / f"{year}_summary.csv"
     with open(summary_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow([
-            "month", "investment_expense", "cost_basis_of_expense",
+            "sell_date", "investment_expense", "cost_basis_of_expense",
             "reportable_gain",
         ])
-        for month in sorted(monthly_agg):
-            agg = monthly_agg[month]
+        for sell_date in sorted(date_agg):
+            agg = date_agg[sell_date]
             writer.writerow([
-                month,
+                sell_date.isoformat(),
                 agg["investment_expense"].quantize(CENTS, ROUND_HALF_UP),
                 agg["cost_basis_of_expense"].quantize(CENTS, ROUND_HALF_UP),
                 agg["reportable_gain"].quantize(CENTS, ROUND_HALF_UP),

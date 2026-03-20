@@ -28,7 +28,7 @@ fbtc-taxgrinder --help
 
 ### Key modules
 
-- **`models.py`** — Core dataclasses: `Lot`, `LotEvent`, `YearProceeds`, `YearResult`, `Disposition`, `MonthResult`, `LotState`. All financial values use `Decimal` for precision.
+- **`models.py`** — Core dataclasses: `Lot`, `LotEvent`, `YearProceeds`, `YearResult`, `Disposition`, `ExpenseResult`, `LotState`. All financial values use `Decimal` for precision.
 - **`parsers/`** — `fidelity_pdf.py` extracts daily BTC/share and monthly expense data from WHFIT PDFs; `etrade.py` parses trade CSVs into buy/sell lists.
 - **`engine/compute.py`** — Implements the 6-step monthly calculation per lot: BTC ownership → BTC sold (prorated by days held) → cost basis → expense → gain/loss → updated state. Handles multi-sell months by splitting into phases.
 - **`engine/matching.py`** — Matches sell transactions to lots with ambiguity detection.

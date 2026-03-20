@@ -1,7 +1,7 @@
 from decimal import Decimal
 from datetime import date
 from fbtc_taxgrinder.models import (
-    Lot, LotEvent, LotState, MonthResult, Disposition,
+    Lot, LotEvent, LotState, ExpenseResult, Disposition,
     YearResult, MonthProceeds, YearProceeds,
 )
 

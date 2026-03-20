@@ -297,7 +297,7 @@ def test_compute_year_single_lot_single_month():
     )
     assert "lot-1" in result.lot_results
     # Aug is month 8, should be the only result with nonzero expense
-    aug = [r for r in result.lot_results["lot-1"] if r.month == 8]
+    aug = [r for r in result.lot_results["lot-1"] if r.sell_date == date(2024, 8, 31)]
     assert len(aug) == 1
     assert aug[0].shares == Decimal("204")
 
@@ -418,7 +418,7 @@ def test_compute_year_with_prior_state():
     assert end_state_2025.shares == Decimal("204")
 
     # Verify 2025 March result used carried-forward state
-    march_results = [r for r in result_2025.lot_results["lot-1"] if r.month == 3]
+    march_results = [r for r in result_2025.lot_results["lot-1"] if r.sell_date == date(2025, 3, 31)]
     assert len(march_results) == 1
     # The adj_btc at end of March should be less than what 2024 ended with
     assert march_results[0].adj_btc < end_state.adj_btc
