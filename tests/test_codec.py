@@ -154,6 +154,14 @@ def test_encode_no_scientific_notation():
     assert "0.00000018" in text
 
 
+def test_reconstruct_unknown_type_fallback():
+    """_reconstruct returns data as-is for unknown/unhandled types."""
+    from fbtc_taxgrinder.db.codec import _reconstruct
+    # float is not handled by any branch — should fall through to `return data`
+    assert _reconstruct(float, 3.14) == 3.14
+    assert _reconstruct(bool, True) is True
+
+
 def test_lot_without_events_roundtrip():
     """Lot with empty events list round-trips correctly."""
     lot = Lot(

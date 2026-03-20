@@ -443,3 +443,92 @@ def test_compute_year_chain_validation_error():
             prior_state=None,
             year=2026,
         )
+
+
+def test_compute_year_future_lot_skipped():
+    """A lot purchased in a future year should be silently skipped."""
+    lot_current = Lot(
+        id="lot-1", purchase_date=date(2024, 1, 25),
+        original_shares=Decimal("100"), price_per_share=Decimal("50.00"),
+        total_cost=Decimal("5000.00"),
+        btc_per_share_on_purchase=Decimal("0.001"),
+        source_file="test.csv", events=[],
+    )
+    lot_future = Lot(
+        id="lot-2", purchase_date=date(2025, 6, 15),
+        original_shares=Decimal("50"), price_per_share=Decimal("60.00"),
+        total_cost=Decimal("3000.00"),
+        btc_per_share_on_purchase=Decimal("0.0009"),
+        source_file="test.csv", events=[],
+    )
+    proceeds = YearProceeds(
+        daily={date(2024, 1, 25): Decimal("0.001")},
+        monthly={},
+        source="test",
+    )
+    result = compute_year(
+        lots=[lot_current, lot_future],
+        proceeds=proceeds,
+        prior_state=None,
+        year=2024,
+    )
+    # lot-1 should be computed, lot-2 should be skipped entirely
+    assert "lot-1" in result.end_states
+    assert "lot-2" not in result.end_states
+
+
+def test_compute_year_fully_liquidated_lot_preserved():
+    """A lot with shares=0 in prior state should be preserved in end_states but not computed."""
+    lot = Lot(
+        id="lot-1", purchase_date=date(2024, 1, 25),
+        original_shares=Decimal("100"), price_per_share=Decimal("50.00"),
+        total_cost=Decimal("5000.00"),
+        btc_per_share_on_purchase=Decimal("0.001"),
+        source_file="test.csv", events=[],
+    )
+    prior = {
+        "lot-1": LotState(
+            adj_btc=Decimal("0.00001"),
+            adj_basis=Decimal("0.50"),
+            shares=Decimal("0"),
+        ),
+    }
+    proceeds = YearProceeds(
+        daily={}, monthly={}, source="test",
+    )
+    result = compute_year(
+        lots=[lot], proceeds=proceeds,
+        prior_state=prior, year=2025,
+    )
+    # Should be in end_states with same values
+    assert "lot-1" in result.end_states
+    assert result.end_states["lot-1"].shares == Decimal("0")
+    # Should not have any expense results
+    assert "lot-1" not in result.lot_results
+
+
+def test_compute_year_prior_state_lot_missing():
+    """Prior state provided but lot ID not in it — should raise ValueError."""
+    lot = Lot(
+        id="lot-1", purchase_date=date(2024, 1, 25),
+        original_shares=Decimal("100"), price_per_share=Decimal("50.00"),
+        total_cost=Decimal("5000.00"),
+        btc_per_share_on_purchase=Decimal("0.001"),
+        source_file="test.csv", events=[],
+    )
+    # prior_state exists but doesn't contain lot-1
+    prior = {
+        "lot-other": LotState(
+            adj_btc=Decimal("0.001"),
+            adj_basis=Decimal("500.00"),
+            shares=Decimal("100"),
+        ),
+    }
+    proceeds = YearProceeds(
+        daily={}, monthly={}, source="test",
+    )
+    with pytest.raises(ValueError, match="requires 2024 results"):
+        compute_year(
+            lots=[lot], proceeds=proceeds,
+            prior_state=prior, year=2025,
+        )

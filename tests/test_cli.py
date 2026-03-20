@@ -413,6 +413,137 @@ def test_status_with_data(project_dir, tmp_path):
     assert "2024" in result.output
 
 
+def test_import_trades_date_missing_in_proceeds(project_dir, tmp_path):
+    """Buy date exists in proceeds year but specific date missing from daily data."""
+    yp = YearProceeds(
+        daily={date(2024, 2, 1): Decimal("0.00087448")},  # different date than buy
+        monthly={},
+        source="test.pdf",
+    )
+    proceeds_db.save(project_dir, 2024, yp)
+
+    csv_path = tmp_path / "trades.csv"
+    _write_etrade_csv(csv_path)  # buy date is 1/25/2024
+
+    runner = CliRunner()
+    result = runner.invoke(cli, [
+        "--project", str(project_dir),
+        "import-trades", "--file", str(csv_path),
+    ])
+    assert result.exit_code != 0
+    assert "No BTC-per-share data" in result.output
+
+
+def test_compute_mutually_exclusive_flags(project_dir):
+    """--full-month and --prorate together should error."""
+    runner = CliRunner()
+    result = runner.invoke(cli, [
+        "--project", str(project_dir),
+        "compute", "--year", "2024", "--full-month", "--prorate",
+    ])
+    assert result.exit_code != 0
+    assert "mutually exclusive" in result.output.lower()
+
+
+def test_compute_loads_prior_state(project_dir, tmp_path):
+    """Multi-year compute: 2025 should load 2024 state."""
+    # Set up 2024 data and compute
+    _save_test_proceeds(project_dir)
+    csv_path = tmp_path / "trades.csv"
+    _write_etrade_csv(csv_path)
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--project", str(project_dir), "import-trades", "--file", str(csv_path)])
+    assert result.exit_code == 0, result.output
+    result = runner.invoke(cli, ["--project", str(project_dir), "compute", "--year", "2024"])
+    assert result.exit_code == 0, result.output
+
+    # Set up 2025 proceeds
+    yp_2025 = YearProceeds(
+        daily={},
+        monthly={
+            date(2025, 3, 31): MonthProceeds(
+                btc_sold_per_share=Decimal("0.00000020"),
+                proceeds_per_share_usd=Decimal("0.01509769"),
+            ),
+        },
+        source="test2.pdf",
+    )
+    proceeds_db.save(project_dir, 2025, yp_2025)
+
+    # Compute 2025 — should load prior state from 2024
+    result = runner.invoke(cli, ["--project", str(project_dir), "compute", "--year", "2025"])
+    assert result.exit_code == 0, result.output
+    assert "Computed 2025" in result.output
+
+
+def test_compute_value_error_wrapped(project_dir, tmp_path):
+    """ValueError from compute_year should be wrapped in ClickException."""
+    _save_test_proceeds(project_dir)
+    csv_path = tmp_path / "trades.csv"
+    _write_etrade_csv(csv_path)
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--project", str(project_dir), "import-trades", "--file", str(csv_path)])
+    assert result.exit_code == 0, result.output
+
+    with patch("fbtc_taxgrinder.cli.commands.compute_year", side_effect=ValueError("test error")):
+        result = runner.invoke(cli, ["--project", str(project_dir), "compute", "--year", "2024"])
+    assert result.exit_code != 0
+    assert "test error" in result.output
+
+
+def test_lots_empty(project_dir):
+    """lots command with no data shows 'No lots found'."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--project", str(project_dir), "lots"])
+    assert result.exit_code == 0
+    assert "No lots" in result.output
+
+
+def test_lots_with_sell_events(project_dir, tmp_path):
+    """lots command displays sell events."""
+    _save_test_proceeds(project_dir)
+    csv_path = tmp_path / "trades.csv"
+    _write_etrade_csv_with_sell(csv_path)
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--project", str(project_dir), "import-trades", "--file", str(csv_path)])
+    assert result.exit_code == 0, result.output
+    result = runner.invoke(cli, ["--project", str(project_dir), "lots"])
+    assert result.exit_code == 0
+    assert "lot-1" in result.output
+    assert "sell" in result.output
+
+
+def test_status_no_directories(project_dir):
+    """status command when proceeds/results dirs don't exist."""
+    import shutil
+    # Remove the dirs that conftest created, then also patch cli to not recreate them
+    shutil.rmtree(project_dir / "proceeds")
+    shutil.rmtree(project_dir / "results")
+
+    # Directly invoke the status command with a pre-set context to bypass cli group
+    from fbtc_taxgrinder.cli.commands import status
+    runner = CliRunner()
+    result = runner.invoke(status, [], obj={"project_dir": project_dir})
+    assert result.exit_code == 0
+    assert "Proceeds: none" in result.output
+    assert "Computed: none" in result.output
+
+
+def test_int_stems_non_numeric(tmp_path):
+    """_int_stems should skip non-numeric JSON filenames."""
+    from fbtc_taxgrinder.cli.commands import _int_stems
+    d = tmp_path / "test_stems"
+    d.mkdir()
+    (d / "2024.json").write_text("{}")
+    (d / "notes.json").write_text("{}")
+    (d / "backup.json").write_text("{}")
+    result = _int_stems(d)
+    assert result == [2024]
+
+
 def test_e2e_workflow(project_dir, tmp_path):
     """Full workflow: seed proceeds, import trades, compute, export, re-compute."""
     runner = CliRunner()
