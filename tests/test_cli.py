@@ -71,41 +71,41 @@ def _write_etrade_csv_with_sell(path: Path) -> None:
 
 # --- Error path tests ---
 
-def test_import_proceeds_missing_file(data_dir):
+def test_import_proceeds_missing_file(project_dir):
     """import-proceeds --file with nonexistent file should error."""
     runner = CliRunner()
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "import-proceeds", "--file", "/nonexistent.pdf",
     ])
     assert result.exit_code != 0
     assert "not found" in result.output.lower() or "error" in result.output.lower()
 
 
-def test_import_proceeds_no_source(data_dir):
+def test_import_proceeds_no_source(project_dir):
     """import-proceeds without --url or --file should error."""
     runner = CliRunner()
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "import-proceeds",
     ])
     assert result.exit_code != 0
 
 
-def test_compute_missing_proceeds(data_dir):
+def test_compute_missing_proceeds(project_dir):
     runner = CliRunner()
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "compute", "--year", "2024",
     ])
     assert result.exit_code != 0
 
 
-def test_export_missing_results(data_dir):
+def test_export_missing_results(project_dir):
     runner = CliRunner()
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
-        "export", "--year", "2024", "--output", str(data_dir / "out"),
+        "--project", str(project_dir),
+        "export", "--year", "2024",
     ])
     assert result.exit_code != 0
     assert "No results" in result.output
@@ -113,7 +113,7 @@ def test_export_missing_results(data_dir):
 
 # --- Happy path tests ---
 
-def test_import_proceeds_from_file(data_dir):
+def test_import_proceeds_from_file(project_dir):
     """import-proceeds --file with a mocked PDF parser."""
     mock_yp = YearProceeds(
         daily={date(2024, 1, 11): Decimal("0.00087448")},
@@ -123,14 +123,14 @@ def test_import_proceeds_from_file(data_dir):
     with patch("fbtc_taxgrinder.cli.commands.parse_fidelity_pdf_file", return_value=mock_yp):
         runner = CliRunner()
         result = runner.invoke(cli, [
-            "--data-dir", str(data_dir),
+            "--project", str(project_dir),
             "import-proceeds", "--file", __file__,  # use any existing file
         ])
     assert result.exit_code == 0
     assert "Imported 2024" in result.output
 
 
-def test_import_proceeds_from_url(data_dir):
+def test_import_proceeds_from_url(project_dir):
     """import-proceeds --url with a mocked PDF parser."""
     mock_yp = YearProceeds(
         daily={date(2024, 1, 11): Decimal("0.00087448")},
@@ -140,16 +140,16 @@ def test_import_proceeds_from_url(data_dir):
     with patch("fbtc_taxgrinder.cli.commands.parse_fidelity_pdf_url", return_value=mock_yp):
         runner = CliRunner()
         result = runner.invoke(cli, [
-            "--data-dir", str(data_dir),
+            "--project", str(project_dir),
             "import-proceeds", "--url", "https://example.com/test.pdf",
         ])
     assert result.exit_code == 0
     assert "Imported 2024" in result.output
 
 
-def test_import_proceeds_idempotent(data_dir):
+def test_import_proceeds_idempotent(project_dir):
     """Second import of same year should skip."""
-    _save_test_proceeds(data_dir)
+    _save_test_proceeds(project_dir)
     mock_yp = YearProceeds(
         daily={date(2024, 1, 25): Decimal("0.00087448")},
         monthly={},
@@ -158,73 +158,73 @@ def test_import_proceeds_idempotent(data_dir):
     with patch("fbtc_taxgrinder.cli.commands.parse_fidelity_pdf_file", return_value=mock_yp):
         runner = CliRunner()
         result = runner.invoke(cli, [
-            "--data-dir", str(data_dir),
+            "--project", str(project_dir),
             "import-proceeds", "--file", __file__,
         ])
     assert result.exit_code == 0
     assert "already imported" in result.output
 
 
-def test_import_proceeds_empty_pdf(data_dir):
+def test_import_proceeds_empty_pdf(project_dir):
     """PDF with no data should error."""
     mock_yp = YearProceeds(daily={}, monthly={}, source="empty.pdf")
     with patch("fbtc_taxgrinder.cli.commands.parse_fidelity_pdf_file", return_value=mock_yp):
         runner = CliRunner()
         result = runner.invoke(cli, [
-            "--data-dir", str(data_dir),
+            "--project", str(project_dir),
             "import-proceeds", "--file", __file__,
         ])
     assert result.exit_code != 0
     assert "No data" in result.output
 
 
-def test_import_trades(data_dir, tmp_path):
+def test_import_trades(project_dir, tmp_path):
     """Full import-trades happy path."""
-    _save_test_proceeds(data_dir)
+    _save_test_proceeds(project_dir)
     csv_path = tmp_path / "trades.csv"
     _write_etrade_csv(csv_path)
 
     runner = CliRunner()
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "import-trades", "--file", str(csv_path),
     ])
     assert result.exit_code == 0
     assert "1 new lots" in result.output
 
 
-def test_import_trades_missing_file(data_dir):
+def test_import_trades_missing_file(project_dir):
     runner = CliRunner()
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "import-trades", "--file", "/nonexistent.csv",
     ])
     assert result.exit_code != 0
 
 
-def test_import_trades_missing_proceeds(data_dir, tmp_path):
+def test_import_trades_missing_proceeds(project_dir, tmp_path):
     """import-trades without proceeds should error."""
     csv_path = tmp_path / "trades.csv"
     _write_etrade_csv(csv_path)
 
     runner = CliRunner()
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "import-trades", "--file", str(csv_path),
     ])
     assert result.exit_code != 0
     assert "not imported" in result.output.lower() or "import-proceeds" in result.output
 
 
-def test_import_trades_with_sells(data_dir, tmp_path):
+def test_import_trades_with_sells(project_dir, tmp_path):
     """Import trades with a sell row creates lot and sell event."""
-    _save_test_proceeds(data_dir)
+    _save_test_proceeds(project_dir)
     csv_path = tmp_path / "trades.csv"
     _write_etrade_csv_with_sell(csv_path)
 
     runner = CliRunner()
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "import-trades", "--file", str(csv_path),
     ])
     assert result.exit_code == 0, result.output
@@ -232,7 +232,7 @@ def test_import_trades_with_sells(data_dir, tmp_path):
     assert "1 new sells" in result.output
 
     # Verify sell event on the lot
-    lots = lots_db.load(data_dir)
+    lots = lots_db.load(project_dir)
     assert len(lots) == 1
     lot = lots[0]
     sell_events = [e for e in lot.events if e.type == "sell"]
@@ -242,31 +242,31 @@ def test_import_trades_with_sells(data_dir, tmp_path):
     assert sell_events[0].price_per_share == Decimal("50.00")
 
 
-def test_import_trades_sell_idempotent(data_dir, tmp_path):
+def test_import_trades_sell_idempotent(project_dir, tmp_path):
     """Importing the same sells twice should produce 0 new sells on second run."""
-    _save_test_proceeds(data_dir)
+    _save_test_proceeds(project_dir)
     csv_path = tmp_path / "trades.csv"
     _write_etrade_csv_with_sell(csv_path)
 
     runner = CliRunner()
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "import-trades", "--file", str(csv_path),
     ])
     assert result.exit_code == 0, result.output
 
     # Second import
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "import-trades", "--file", str(csv_path),
     ])
     assert result.exit_code == 0, result.output
     assert "0 new sells" in result.output
 
 
-def test_import_trades_sell_no_match(data_dir, tmp_path):
+def test_import_trades_sell_no_match(project_dir, tmp_path):
     """Sell with no matching lot should fail."""
-    _save_test_proceeds(data_dir)
+    _save_test_proceeds(project_dir)
     # Write CSV with only a sell (no buy) — no lot will match
     fieldnames = [
         "Trade Date", "Order Type", "Security", "Cusip",
@@ -286,140 +286,139 @@ def test_import_trades_sell_no_match(data_dir, tmp_path):
 
     runner = CliRunner()
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "import-trades", "--file", str(csv_path),
     ])
     assert result.exit_code != 0
 
 
-def test_compute_happy_path(data_dir, tmp_path):
+def test_compute_happy_path(project_dir, tmp_path):
     """Full compute happy path."""
-    _save_test_proceeds(data_dir)
+    _save_test_proceeds(project_dir)
     csv_path = tmp_path / "trades.csv"
     _write_etrade_csv(csv_path)
 
     runner = CliRunner()
     # Import trades first
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "import-trades", "--file", str(csv_path),
     ])
     assert result.exit_code == 0, result.output
     # Compute
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "compute", "--year", "2024",
     ])
     assert result.exit_code == 0
     assert "Computed 2024" in result.output
 
 
-def test_compute_already_exists(data_dir, tmp_path):
+def test_compute_already_exists(project_dir, tmp_path):
     """Compute without --force when results exist should skip."""
-    _save_test_proceeds(data_dir)
+    _save_test_proceeds(project_dir)
     csv_path = tmp_path / "trades.csv"
     _write_etrade_csv(csv_path)
 
     runner = CliRunner()
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "import-trades", "--file", str(csv_path),
     ])
     assert result.exit_code == 0, result.output
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "compute", "--year", "2024",
     ])
     assert result.exit_code == 0, result.output
     # Second compute should skip
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "compute", "--year", "2024",
     ])
     assert result.exit_code == 0
     assert "already computed" in result.output
 
 
-def test_compute_no_lots(data_dir):
+def test_compute_no_lots(project_dir):
     """Compute without lots should error."""
-    _save_test_proceeds(data_dir)
+    _save_test_proceeds(project_dir)
     runner = CliRunner()
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "compute", "--year", "2024",
     ])
     assert result.exit_code != 0
     assert "No lots" in result.output
 
 
-def test_export_happy_path(data_dir, tmp_path):
+def test_export_happy_path(project_dir):
     """Full export happy path."""
-    _save_test_proceeds(data_dir)
-    csv_path = tmp_path / "trades.csv"
+    _save_test_proceeds(project_dir)
+    csv_path = project_dir / "trades.csv"
     _write_etrade_csv(csv_path)
 
     runner = CliRunner()
-    result = runner.invoke(cli, ["--data-dir", str(data_dir), "import-trades", "--file", str(csv_path)])
+    result = runner.invoke(cli, ["--project", str(project_dir), "import-trades", "--file", str(csv_path)])
     assert result.exit_code == 0, result.output
-    result = runner.invoke(cli, ["--data-dir", str(data_dir), "compute", "--year", "2024"])
+    result = runner.invoke(cli, ["--project", str(project_dir), "compute", "--year", "2024"])
     assert result.exit_code == 0, result.output
 
-    out_dir = tmp_path / "export"
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
-        "export", "--year", "2024", "--output", str(out_dir),
+        "--project", str(project_dir),
+        "export", "--year", "2024",
     ])
     assert result.exit_code == 0
     assert "Exported" in result.output
-    assert (out_dir / "2024_monthly.csv").exists()
+    assert (project_dir / "output" / "2024_monthly.csv").exists()
 
 
-def test_lots_with_data(data_dir, tmp_path):
+def test_lots_with_data(project_dir, tmp_path):
     """lots command with imported data."""
-    _save_test_proceeds(data_dir)
+    _save_test_proceeds(project_dir)
     csv_path = tmp_path / "trades.csv"
     _write_etrade_csv(csv_path)
 
     runner = CliRunner()
-    result = runner.invoke(cli, ["--data-dir", str(data_dir), "import-trades", "--file", str(csv_path)])
+    result = runner.invoke(cli, ["--project", str(project_dir), "import-trades", "--file", str(csv_path)])
     assert result.exit_code == 0, result.output
-    result = runner.invoke(cli, ["--data-dir", str(data_dir), "lots"])
+    result = runner.invoke(cli, ["--project", str(project_dir), "lots"])
     assert result.exit_code == 0
     assert "lot-1" in result.output
     assert "204" in result.output
 
 
-def test_status_empty(data_dir):
+def test_status_empty(project_dir):
     runner = CliRunner()
-    result = runner.invoke(cli, ["--data-dir", str(data_dir), "status"])
+    result = runner.invoke(cli, ["--project", str(project_dir), "status"])
     assert result.exit_code == 0
     assert "0 lots" in result.output
 
 
-def test_status_with_data(data_dir, tmp_path):
+def test_status_with_data(project_dir, tmp_path):
     """status command with imported data."""
-    _save_test_proceeds(data_dir)
+    _save_test_proceeds(project_dir)
     csv_path = tmp_path / "trades.csv"
     _write_etrade_csv(csv_path)
 
     runner = CliRunner()
-    result = runner.invoke(cli, ["--data-dir", str(data_dir), "import-trades", "--file", str(csv_path)])
+    result = runner.invoke(cli, ["--project", str(project_dir), "import-trades", "--file", str(csv_path)])
     assert result.exit_code == 0, result.output
-    result = runner.invoke(cli, ["--data-dir", str(data_dir), "compute", "--year", "2024"])
+    result = runner.invoke(cli, ["--project", str(project_dir), "compute", "--year", "2024"])
     assert result.exit_code == 0, result.output
 
-    result = runner.invoke(cli, ["--data-dir", str(data_dir), "status"])
+    result = runner.invoke(cli, ["--project", str(project_dir), "status"])
     assert result.exit_code == 0
     assert "1 lots" in result.output
     assert "2024" in result.output
 
 
-def test_e2e_workflow(data_dir, tmp_path):
+def test_e2e_workflow(project_dir, tmp_path):
     """Full workflow: seed proceeds, import trades, compute, export, re-compute."""
     runner = CliRunner()
 
     # Manually seed proceeds (skip PDF parsing for this test)
-    _save_test_proceeds(data_dir)
+    _save_test_proceeds(project_dir)
 
     # Create a minimal ETrade CSV
     csv_path = tmp_path / "trades.csv"
@@ -427,7 +426,7 @@ def test_e2e_workflow(data_dir, tmp_path):
 
     # Import trades
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "import-trades", "--file", str(csv_path),
     ])
     assert result.exit_code == 0, result.output
@@ -435,32 +434,30 @@ def test_e2e_workflow(data_dir, tmp_path):
 
     # Compute
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "compute", "--year", "2024",
     ])
     assert result.exit_code == 0, result.output
 
     # Export
-    output_dir = tmp_path / "output"
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "export", "--year", "2024",
-        "--output", str(output_dir),
     ])
     assert result.exit_code == 0, result.output
-    assert (output_dir / "2024_monthly.csv").exists()
-    assert (output_dir / "2024_summary.csv").exists()
+    assert (project_dir / "output" / "2024_monthly.csv").exists()
+    assert (project_dir / "output" / "2024_summary.csv").exists()
 
     # Verify skip on re-compute
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "compute", "--year", "2024",
     ])
     assert "already computed" in result.output
 
     # Verify --force recomputes
     result = runner.invoke(cli, [
-        "--data-dir", str(data_dir),
+        "--project", str(project_dir),
         "compute", "--year", "2024", "--force",
     ])
     assert result.exit_code == 0
