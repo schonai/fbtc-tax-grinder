@@ -1,9 +1,11 @@
-from decimal import Decimal
 from datetime import date
-from unittest.mock import patch, MagicMock
+from decimal import Decimal
+from unittest.mock import MagicMock, patch
 from fbtc_taxgrinder.parsers.fidelity_pdf import (
-    parse_proceeds_line, parse_proceeds_pdf,
-    parse_fidelity_pdf_file, parse_fidelity_pdf_url,
+    parse_proceeds_line,
+    parse_proceeds_pdf,
+    parse_fidelity_pdf_file,
+    parse_fidelity_pdf_url,
 )
 
 
@@ -32,7 +34,9 @@ def test_parse_month_end_line_no_space_in_decimal():
 
 
 def test_parse_header_line():
-    result = parse_proceeds_line("Bitcoin Per Per Share Bitcoin Sold To Proceeds Per Share (USD)")
+    result = parse_proceeds_line(
+        "Bitcoin Per Per Share Bitcoin Sold To Proceeds Per Share (USD)"
+    )
     assert result is None
 
 
@@ -112,7 +116,7 @@ def test_parse_fidelity_pdf_url():
     with (
         patch("fbtc_taxgrinder.parsers.fidelity_pdf.requests") as mock_requests,
         patch("fbtc_taxgrinder.parsers.fidelity_pdf.pdfplumber") as mock_plumber,
-        patch("fbtc_taxgrinder.parsers.fidelity_pdf.Path") as mock_path,
+        patch("fbtc_taxgrinder.parsers.fidelity_pdf.Path"),
     ):
         mock_requests.get.return_value = mock_resp
         mock_plumber.open.return_value = mock_pdf

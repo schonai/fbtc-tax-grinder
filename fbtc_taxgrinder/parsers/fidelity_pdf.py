@@ -1,3 +1,5 @@
+"""Fidelity WHFIT PDF parser for daily BTC/share and monthly proceeds."""
+
 from __future__ import annotations
 
 import re
@@ -11,14 +13,16 @@ from typing import TYPE_CHECKING
 import pdfplumber
 import requests
 
+from fbtc_taxgrinder.models import MonthProceeds, YearProceeds
+
 if TYPE_CHECKING:
     from pdfplumber import PDF
-
-from fbtc_taxgrinder.models import MonthProceeds, YearProceeds
 
 
 @dataclass
 class ProceedsRow:
+    """A single parsed row from the Fidelity Gross Proceeds PDF."""
+
     date: date
     btc_per_share: Decimal
     btc_sold_per_share: Decimal | None = None
@@ -68,7 +72,9 @@ def parse_proceeds_line(line: str) -> ProceedsRow | None:
     return result
 
 
-def parse_proceeds_pdf(pdf: PDF) -> tuple[dict[date, Decimal], dict[date, MonthProceeds]]:
+def parse_proceeds_pdf(
+    pdf: PDF,
+) -> tuple[dict[date, Decimal], dict[date, MonthProceeds]]:
     """Extract daily and monthly proceeds from an opened pdfplumber PDF.
 
     Args:
@@ -125,18 +131,20 @@ def parse_fidelity_pdf_url(url: str) -> YearProceeds:
     Returns:
         YearProceeds with daily and monthly data.
     """
-    tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        tmp_path = tmp.name
     try:
         resp = requests.get(url, timeout=30)
         resp.raise_for_status()
-        tmp.write(resp.content)
-        tmp.close()
-        result = parse_fidelity_pdf_file(tmp.name)
+        Path(tmp_path).write_bytes(resp.content)
+        result = parse_fidelity_pdf_file(tmp_path)
         # Override source to use the URL filename
         source_name = url.split("/")[-1] if "/" in url else url
         result = YearProceeds(
-            daily=result.daily, monthly=result.monthly, source=source_name,
+            daily=result.daily,
+            monthly=result.monthly,
+            source=source_name,
         )
         return result
     finally:
-        Path(tmp.name).unlink(missing_ok=True)
+        Path(tmp_path).unlink(missing_ok=True)

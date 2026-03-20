@@ -1,3 +1,5 @@
+"""ETrade CSV parser for FBTC buy/sell transactions."""
+
 from __future__ import annotations
 
 import csv
@@ -11,6 +13,8 @@ from pathlib import Path
 
 @dataclass
 class BuyTrade:
+    """A parsed buy transaction from ETrade."""
+
     date: date
     shares: Decimal
     price_per_share: Decimal
@@ -19,6 +23,8 @@ class BuyTrade:
 
 @dataclass
 class SellTrade:
+    """A parsed sell transaction from ETrade."""
+
     date: date
     shares: Decimal
     price_per_share: Decimal
@@ -27,6 +33,8 @@ class SellTrade:
 
 @dataclass
 class TradeResult:
+    """Parsed buy and sell trades from an ETrade CSV."""
+
     buys: list[BuyTrade]
     sells: list[SellTrade]
 
@@ -47,7 +55,14 @@ def parse_etrade_rows(rows: Iterable[dict]) -> TradeResult:
     first = next(rows_iter, None)
     if first is None:
         return TradeResult(buys=[], sells=[])
-    required = {"Security", "Trade Date", "Quantity", "Executed Price", "Order Type", "Net Amount"}
+    required = {
+        "Security",
+        "Trade Date",
+        "Quantity",
+        "Executed Price",
+        "Order Type",
+        "Net Amount",
+    }
     missing = required - first.keys()
     if missing:
         raise ValueError(f"Missing required column(s): {', '.join(sorted(missing))}")
@@ -64,20 +79,24 @@ def parse_etrade_rows(rows: Iterable[dict]) -> TradeResult:
 
         if order_type == "Buy":
             net_amount = Decimal(row["Net Amount"].strip())
-            buys.append(BuyTrade(
-                date=trade_date,
-                shares=shares,
-                price_per_share=price,
-                total_cost=net_amount,
-            ))
+            buys.append(
+                BuyTrade(
+                    date=trade_date,
+                    shares=shares,
+                    price_per_share=price,
+                    total_cost=net_amount,
+                )
+            )
         elif order_type == "Sell":
             proceeds = Decimal(row["Net Amount"].strip())
-            sells.append(SellTrade(
-                date=trade_date,
-                shares=shares,
-                price_per_share=price,
-                proceeds=proceeds,
-            ))
+            sells.append(
+                SellTrade(
+                    date=trade_date,
+                    shares=shares,
+                    price_per_share=price,
+                    proceeds=proceeds,
+                )
+            )
 
     buys.sort(key=lambda x: x.date)
     sells.sort(key=lambda x: x.date)
@@ -94,6 +113,6 @@ def parse_etrade_csv(file_path: str | Path) -> TradeResult:
     Returns:
         TradeResult with buys and sells lists, each sorted by date.
     """
-    with open(file_path, newline="") as f:
+    with open(file_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         return parse_etrade_rows(reader)

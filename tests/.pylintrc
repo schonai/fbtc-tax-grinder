@@ -1,0 +1,11 @@
+[MAIN]
+
+[MESSAGES CONTROL]
+
+disable=duplicate-code,
+        import-outside-toplevel,
+        missing-class-docstring,
+        missing-function-docstring,
+        missing-module-docstring,
+        redefined-builtin,
+        use-dict-literal

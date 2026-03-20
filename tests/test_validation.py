@@ -3,10 +3,13 @@
 These tests verify mathematical properties that must hold regardless of
 the specific numeric values — no spreadsheet comparisons.
 """
+
 from decimal import Decimal
 from datetime import date
 from fbtc_taxgrinder.models import (
-    Lot, MonthProceeds, YearProceeds,
+    Lot,
+    MonthProceeds,
+    YearProceeds,
 )
 from fbtc_taxgrinder.engine.compute import compute_year
 
@@ -53,51 +56,156 @@ PROCEEDS_2024 = YearProceeds(
 )
 
 ALL_LOTS_2024 = [
-    Lot(id="lot-1", purchase_date=date(2024, 1, 25), original_shares=Decimal("204"),
-        price_per_share=Decimal("34.81"), total_cost=Decimal("7101.24"),
-        btc_per_share_on_purchase=Decimal("0.00087448"), source_file="t", events=[]),
-    Lot(id="lot-2", purchase_date=date(2024, 2, 17), original_shares=Decimal("2"),
-        price_per_share=Decimal("45.81"), total_cost=Decimal("91.62"),
-        btc_per_share_on_purchase=Decimal("0.00087448"), source_file="t", events=[]),
-    Lot(id="lot-3", purchase_date=date(2024, 2, 23), original_shares=Decimal("9"),
-        price_per_share=Decimal("44.85"), total_cost=Decimal("403.65"),
-        btc_per_share_on_purchase=Decimal("0.00087448"), source_file="t", events=[]),
-    Lot(id="lot-4", purchase_date=date(2024, 3, 6), original_shares=Decimal("42"),
-        price_per_share=Decimal("58.315"), total_cost=Decimal("2449.23"),
-        btc_per_share_on_purchase=Decimal("0.00087448"), source_file="t", events=[]),
-    Lot(id="lot-5", purchase_date=date(2024, 3, 19), original_shares=Decimal("1"),
-        price_per_share=Decimal("56.639"), total_cost=Decimal("56.639"),
-        btc_per_share_on_purchase=Decimal("0.00087448"), source_file="t", events=[]),
-    Lot(id="lot-6", purchase_date=date(2024, 3, 22), original_shares=Decimal("1"),
-        price_per_share=Decimal("56.18"), total_cost=Decimal("56.18"),
-        btc_per_share_on_purchase=Decimal("0.00087448"), source_file="t", events=[]),
-    Lot(id="lot-7", purchase_date=date(2024, 4, 18), original_shares=Decimal("1"),
-        price_per_share=Decimal("55.82"), total_cost=Decimal("55.82"),
-        btc_per_share_on_purchase=Decimal("0.00087448"), source_file="t", events=[]),
-    Lot(id="lot-8", purchase_date=date(2024, 4, 18), original_shares=Decimal("54"),
-        price_per_share=Decimal("55.6097"), total_cost=Decimal("3002.9238"),
-        btc_per_share_on_purchase=Decimal("0.00087448"), source_file="t", events=[]),
-    Lot(id="lot-9", purchase_date=date(2024, 6, 5), original_shares=Decimal("4"),
-        price_per_share=Decimal("62.2379"), total_cost=Decimal("248.9516"),
-        btc_per_share_on_purchase=Decimal("0.00087448"), source_file="t", events=[]),
-    Lot(id="lot-10", purchase_date=date(2024, 8, 19), original_shares=Decimal("1"),
-        price_per_share=Decimal("51.3995"), total_cost=Decimal("51.3995"),
-        btc_per_share_on_purchase=Decimal("0.00087437"), source_file="t", events=[]),
-    Lot(id="lot-11", purchase_date=date(2024, 8, 19), original_shares=Decimal("5"),
-        price_per_share=Decimal("51.3669"), total_cost=Decimal("256.8345"),
-        btc_per_share_on_purchase=Decimal("0.00087437"), source_file="t", events=[]),
-    Lot(id="lot-12", purchase_date=date(2024, 9, 9), original_shares=Decimal("126"),
-        price_per_share=Decimal("49.50"), total_cost=Decimal("6237.00"),
-        btc_per_share_on_purchase=Decimal("0.00087425"), source_file="t", events=[]),
-    Lot(id="lot-13", purchase_date=date(2024, 9, 9), original_shares=Decimal("86"),
-        price_per_share=Decimal("49.4297"), total_cost=Decimal("4250.9542"),
-        btc_per_share_on_purchase=Decimal("0.00087425"), source_file="t", events=[]),
-    Lot(id="lot-14", purchase_date=date(2024, 10, 17), original_shares=Decimal("82"),
-        price_per_share=Decimal("58.62"), total_cost=Decimal("4806.84"),
-        btc_per_share_on_purchase=Decimal("0.00087401"), source_file="t", events=[]),
-    Lot(id="lot-15", purchase_date=date(2024, 11, 5), original_shares=Decimal("17"),
-        price_per_share=Decimal("61.2986"), total_cost=Decimal("1042.0762"),
-        btc_per_share_on_purchase=Decimal("0.00087391"), source_file="t", events=[]),
+    Lot(
+        id="lot-1",
+        purchase_date=date(2024, 1, 25),
+        original_shares=Decimal("204"),
+        price_per_share=Decimal("34.81"),
+        total_cost=Decimal("7101.24"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="t",
+        events=[],
+    ),
+    Lot(
+        id="lot-2",
+        purchase_date=date(2024, 2, 17),
+        original_shares=Decimal("2"),
+        price_per_share=Decimal("45.81"),
+        total_cost=Decimal("91.62"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="t",
+        events=[],
+    ),
+    Lot(
+        id="lot-3",
+        purchase_date=date(2024, 2, 23),
+        original_shares=Decimal("9"),
+        price_per_share=Decimal("44.85"),
+        total_cost=Decimal("403.65"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="t",
+        events=[],
+    ),
+    Lot(
+        id="lot-4",
+        purchase_date=date(2024, 3, 6),
+        original_shares=Decimal("42"),
+        price_per_share=Decimal("58.315"),
+        total_cost=Decimal("2449.23"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="t",
+        events=[],
+    ),
+    Lot(
+        id="lot-5",
+        purchase_date=date(2024, 3, 19),
+        original_shares=Decimal("1"),
+        price_per_share=Decimal("56.639"),
+        total_cost=Decimal("56.639"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="t",
+        events=[],
+    ),
+    Lot(
+        id="lot-6",
+        purchase_date=date(2024, 3, 22),
+        original_shares=Decimal("1"),
+        price_per_share=Decimal("56.18"),
+        total_cost=Decimal("56.18"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="t",
+        events=[],
+    ),
+    Lot(
+        id="lot-7",
+        purchase_date=date(2024, 4, 18),
+        original_shares=Decimal("1"),
+        price_per_share=Decimal("55.82"),
+        total_cost=Decimal("55.82"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="t",
+        events=[],
+    ),
+    Lot(
+        id="lot-8",
+        purchase_date=date(2024, 4, 18),
+        original_shares=Decimal("54"),
+        price_per_share=Decimal("55.6097"),
+        total_cost=Decimal("3002.9238"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="t",
+        events=[],
+    ),
+    Lot(
+        id="lot-9",
+        purchase_date=date(2024, 6, 5),
+        original_shares=Decimal("4"),
+        price_per_share=Decimal("62.2379"),
+        total_cost=Decimal("248.9516"),
+        btc_per_share_on_purchase=Decimal("0.00087448"),
+        source_file="t",
+        events=[],
+    ),
+    Lot(
+        id="lot-10",
+        purchase_date=date(2024, 8, 19),
+        original_shares=Decimal("1"),
+        price_per_share=Decimal("51.3995"),
+        total_cost=Decimal("51.3995"),
+        btc_per_share_on_purchase=Decimal("0.00087437"),
+        source_file="t",
+        events=[],
+    ),
+    Lot(
+        id="lot-11",
+        purchase_date=date(2024, 8, 19),
+        original_shares=Decimal("5"),
+        price_per_share=Decimal("51.3669"),
+        total_cost=Decimal("256.8345"),
+        btc_per_share_on_purchase=Decimal("0.00087437"),
+        source_file="t",
+        events=[],
+    ),
+    Lot(
+        id="lot-12",
+        purchase_date=date(2024, 9, 9),
+        original_shares=Decimal("126"),
+        price_per_share=Decimal("49.50"),
+        total_cost=Decimal("6237.00"),
+        btc_per_share_on_purchase=Decimal("0.00087425"),
+        source_file="t",
+        events=[],
+    ),
+    Lot(
+        id="lot-13",
+        purchase_date=date(2024, 9, 9),
+        original_shares=Decimal("86"),
+        price_per_share=Decimal("49.4297"),
+        total_cost=Decimal("4250.9542"),
+        btc_per_share_on_purchase=Decimal("0.00087425"),
+        source_file="t",
+        events=[],
+    ),
+    Lot(
+        id="lot-14",
+        purchase_date=date(2024, 10, 17),
+        original_shares=Decimal("82"),
+        price_per_share=Decimal("58.62"),
+        total_cost=Decimal("4806.84"),
+        btc_per_share_on_purchase=Decimal("0.00087401"),
+        source_file="t",
+        events=[],
+    ),
+    Lot(
+        id="lot-15",
+        purchase_date=date(2024, 11, 5),
+        original_shares=Decimal("17"),
+        price_per_share=Decimal("61.2986"),
+        total_cost=Decimal("1042.0762"),
+        btc_per_share_on_purchase=Decimal("0.00087391"),
+        source_file="t",
+        events=[],
+    ),
 ]
 
 
@@ -138,9 +246,9 @@ def test_end_state_btc_less_than_initial():
     for lot in ALL_LOTS_2024:
         initial_btc = lot.btc_per_share_on_purchase * lot.original_shares
         end_state = result.end_states[lot.id]
-        assert end_state.adj_btc < initial_btc, (
-            f"{lot.id}: end adj_btc {end_state.adj_btc} >= initial {initial_btc}"
-        )
+        assert (
+            end_state.adj_btc < initial_btc
+        ), f"{lot.id}: end adj_btc {end_state.adj_btc} >= initial {initial_btc}"
 
 
 def test_end_state_basis_less_than_initial():
@@ -148,18 +256,16 @@ def test_end_state_basis_less_than_initial():
     result = _compute_2024()
     for lot in ALL_LOTS_2024:
         end_state = result.end_states[lot.id]
-        assert end_state.adj_basis < lot.total_cost, (
-            f"{lot.id}: end adj_basis {end_state.adj_basis} >= initial {lot.total_cost}"
-        )
+        assert (
+            end_state.adj_basis < lot.total_cost
+        ), f"{lot.id}: end adj_basis {end_state.adj_basis} >= initial {lot.total_cost}"
 
 
 def test_total_expense_equals_sum_of_monthly():
     """Year total_investment_expense must equal sum of all monthly total_expense values."""
     result = _compute_2024()
     monthly_sum = sum(
-        mr.total_expense
-        for months in result.lot_results.values()
-        for mr in months
+        mr.total_expense for months in result.lot_results.values() for mr in months
     )
     assert result.total_investment_expense == monthly_sum
 
@@ -168,9 +274,7 @@ def test_total_gain_equals_sum_of_monthly():
     """Year total_reportable_gain must equal sum of all monthly gain_loss values."""
     result = _compute_2024()
     monthly_sum = sum(
-        mr.gain_loss
-        for months in result.lot_results.values()
-        for mr in months
+        mr.gain_loss for months in result.lot_results.values() for mr in months
     )
     assert result.total_reportable_gain == monthly_sum
 
@@ -192,7 +296,7 @@ def test_all_lots_produce_results():
 
 
 def test_prorated_lots_have_fewer_active_months():
-    """Lots purchased mid-Aug or later should have fewer active months than lots purchased in Jan."""
+    """Lots purchased mid-Aug+ should have fewer active months than Jan lots."""
     result = _compute_2024()
     jan_lot_months = len(result.lot_results["lot-1"])  # purchased Jan 25
     nov_lot_months = len(result.lot_results["lot-15"])  # purchased Nov 5
@@ -208,10 +312,18 @@ def test_no_negative_values():
     for lot_id, months in result.lot_results.items():
         for mr in months:
             assert mr.adj_btc >= 0, f"{lot_id} month {mr.sell_date}: negative adj_btc"
-            assert mr.adj_basis >= 0, f"{lot_id} month {mr.sell_date}: negative adj_basis"
-            assert mr.total_btc_sold >= 0, f"{lot_id} month {mr.sell_date}: negative total_btc_sold"
-            assert mr.cost_basis_of_sold >= 0, f"{lot_id} month {mr.sell_date}: negative cost_basis"
-            assert mr.total_expense >= 0, f"{lot_id} month {mr.sell_date}: negative total_expense"
+            assert (
+                mr.adj_basis >= 0
+            ), f"{lot_id} month {mr.sell_date}: negative adj_basis"
+            assert (
+                mr.total_btc_sold >= 0
+            ), f"{lot_id} month {mr.sell_date}: negative total_btc_sold"
+            assert (
+                mr.cost_basis_of_sold >= 0
+            ), f"{lot_id} month {mr.sell_date}: negative cost_basis"
+            assert (
+                mr.total_expense >= 0
+            ), f"{lot_id} month {mr.sell_date}: negative total_expense"
 
 
 def test_deterministic():

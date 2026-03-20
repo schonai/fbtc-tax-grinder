@@ -3,8 +3,14 @@ from decimal import Decimal
 
 from fbtc_taxgrinder.db.codec import decode, encode
 from fbtc_taxgrinder.models import (
-    Disposition, Lot, LotEvent, LotState, MonthProceeds, ExpenseResult,
-    YearProceeds, YearResult,
+    Disposition,
+    Lot,
+    LotEvent,
+    LotState,
+    MonthProceeds,
+    ExpenseResult,
+    YearProceeds,
+    YearResult,
 )
 
 
@@ -77,8 +83,11 @@ def test_year_result_roundtrip():
         lot_results={
             "lot-1": [
                 ExpenseResult(
-                    sell_date=date(2024, 8, 31), days_held=Decimal("31"), days_in_month=Decimal("31"),
-                    shares=Decimal("204"), total_btc_sold=Decimal("0.00003672"),
+                    sell_date=date(2024, 8, 31),
+                    days_held=Decimal("31"),
+                    days_in_month=Decimal("31"),
+                    shares=Decimal("204"),
+                    total_btc_sold=Decimal("0.00003672"),
                     cost_basis_of_sold=Decimal("1.461695179"),
                     total_expense=Decimal("2.18346708"),
                     gain_loss=Decimal("0.7217719012"),
@@ -134,11 +143,12 @@ def test_plain_values_passthrough():
 def test_decode_none():
     """_reconstruct returns None when data is None."""
     from fbtc_taxgrinder.db.codec import _reconstruct
+
     assert _reconstruct(Decimal, None) is None
 
 
 def test_encode_no_scientific_notation():
-    """Decimal values with small exponents must serialize as fixed-point, not scientific notation."""
+    """Small-exponent Decimals must serialize as fixed-point, not scientific."""
     yp = YearProceeds(
         daily={},
         monthly={
@@ -157,6 +167,7 @@ def test_encode_no_scientific_notation():
 def test_reconstruct_unknown_type_fallback():
     """_reconstruct returns data as-is for unknown/unhandled types."""
     from fbtc_taxgrinder.db.codec import _reconstruct
+
     # float is not handled by any branch — should fall through to `return data`
     assert _reconstruct(float, 3.14) == 3.14
     assert _reconstruct(bool, True) is True

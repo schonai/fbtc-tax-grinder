@@ -1,9 +1,7 @@
-from decimal import Decimal
 from datetime import date
-from fbtc_taxgrinder.models import (
-    Lot, LotEvent, LotState, ExpenseResult, Disposition,
-    YearResult, MonthProceeds, YearProceeds,
-)
+from decimal import Decimal
+
+from fbtc_taxgrinder.models import Lot, LotEvent, LotState, MonthProceeds
 
 
 def test_lot_total_cost():
@@ -89,14 +87,20 @@ def test_lot_shares_at_date_multiple_sells():
         source_file="test.csv",
         events=[
             LotEvent(
-                type="sell", date=date(2025, 3, 10),
-                shares=Decimal("20"), price_per_share=Decimal("60.00"),
-                proceeds=Decimal("1200.00"), disposition_id="sell-1",
+                type="sell",
+                date=date(2025, 3, 10),
+                shares=Decimal("20"),
+                price_per_share=Decimal("60.00"),
+                proceeds=Decimal("1200.00"),
+                disposition_id="sell-1",
             ),
             LotEvent(
-                type="sell", date=date(2025, 6, 15),
-                shares=Decimal("30"), price_per_share=Decimal("65.00"),
-                proceeds=Decimal("1950.00"), disposition_id="sell-2",
+                type="sell",
+                date=date(2025, 6, 15),
+                shares=Decimal("30"),
+                price_per_share=Decimal("65.00"),
+                proceeds=Decimal("1950.00"),
+                disposition_id="sell-2",
             ),
         ],
     )

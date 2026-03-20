@@ -1,3 +1,5 @@
+"""Persistence layer for computed year results."""
+
 from __future__ import annotations
 
 from pathlib import Path
