@@ -16,8 +16,8 @@ from fbtc_taxgrinder.parsers.etrade import parse_etrade_csv
 from fbtc_taxgrinder.parsers.fidelity_pdf import parse_fidelity_pdf_file, parse_fidelity_pdf_url
 
 
-def _data_dir(ctx: click.Context) -> Path:
-    return ctx.obj["data_dir"]
+def _project_dir(ctx: click.Context) -> Path:
+    return ctx.obj["project_dir"]
 
 
 def _int_stems(directory: Path) -> list[int]:
@@ -33,20 +33,22 @@ def _int_stems(directory: Path) -> list[int]:
 
 @click.group()
 @click.option(
-    "--data-dir",
+    "--project",
+    "project_dir",
     type=click.Path(path_type=Path),
-    default=Path("data"),
-    help="Path to data directory.",
+    required=True,
+    help="Path to project directory.",
 )
 @click.pass_context
-def cli(ctx: click.Context, data_dir: Path) -> None:
+def cli(ctx: click.Context, project_dir: Path) -> None:
     """FBTC Tax Lot Grinder — compute IRS-reportable WHFIT tax lots."""
     ctx.ensure_object(dict)
-    ctx.obj["data_dir"] = data_dir
-    data_dir.mkdir(parents=True, exist_ok=True)
-    (data_dir / "proceeds").mkdir(exist_ok=True)
-    (data_dir / "results").mkdir(exist_ok=True)
-    (data_dir / "state").mkdir(exist_ok=True)
+    ctx.obj["project_dir"] = project_dir
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "proceeds").mkdir(exist_ok=True)
+    (project_dir / "results").mkdir(exist_ok=True)
+    (project_dir / "state").mkdir(exist_ok=True)
+    (project_dir / "output").mkdir(exist_ok=True)
 
 
 @cli.command("import-proceeds")
@@ -74,7 +76,7 @@ def import_proceeds(ctx: click.Context, url: str | None, file_path: str | None) 
     first_date = min(yp.daily.keys())
     year = first_date.year
 
-    dd = _data_dir(ctx)
+    dd = _project_dir(ctx)
     existing = proceeds_db.load(dd, year)
     if existing is not None:
         click.echo(f"Proceeds for {year} already imported ({existing.source}). Skipping.")
@@ -95,7 +97,7 @@ def import_trades(ctx: click.Context, file_path: str) -> None:
     if not Path(file_path).exists():
         raise click.ClickException(f"File not found: {file_path}")
 
-    dd = _data_dir(ctx)
+    dd = _project_dir(ctx)
     parsed = parse_etrade_csv(file_path)
     existing_lots = lots_db.load(dd)
 
@@ -196,7 +198,7 @@ def compute(ctx: click.Context, year: int, force: bool,
         raise click.UsageError("--full-month and --prorate are mutually exclusive.")
     holding_mode = HoldingMode.PRORATE if prorate else HoldingMode.FULL_MONTH
 
-    dd = _data_dir(ctx)
+    dd = _project_dir(ctx)
 
     # Check for existing results
     if not force and results_db.load(dd, year) is not None:
@@ -245,14 +247,14 @@ def compute(ctx: click.Context, year: int, force: bool,
 
 @cli.command()
 @click.option("--year", required=True, type=int)
-@click.option("--output", "output_dir", required=True, type=click.Path(path_type=Path))
 @click.pass_context
-def export(ctx: click.Context, year: int, output_dir: Path) -> None:
+def export(ctx: click.Context, year: int) -> None:
     """Export computed results."""
-    dd = _data_dir(ctx)
+    dd = _project_dir(ctx)
     yr = results_db.load(dd, year)
     if yr is None:
         raise click.ClickException(f"No results for {year}. Run 'compute' first.")
+    output_dir = dd / "output"
     export_year_csv(yr, output_dir)
     click.echo(f"Exported {year} results to {output_dir}/")
 
@@ -261,7 +263,7 @@ def export(ctx: click.Context, year: int, output_dir: Path) -> None:
 @click.pass_context
 def list_lots(ctx: click.Context) -> None:
     """List all lots and their events."""
-    dd = _data_dir(ctx)
+    dd = _project_dir(ctx)
     all_lots = lots_db.load(dd)
     if not all_lots:
         click.echo("No lots found.")
@@ -282,7 +284,7 @@ def list_lots(ctx: click.Context) -> None:
 @click.pass_context
 def status(ctx: click.Context) -> None:
     """Show what data is imported and computed."""
-    dd = _data_dir(ctx)
+    dd = _project_dir(ctx)
     all_lots = lots_db.load(dd)
     click.echo(f"Lots: {len(all_lots)} lots")
     sells = sum(len(lot.events) for lot in all_lots)
