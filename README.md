@@ -16,18 +16,20 @@ pip3 install -e ".[dev]"
 
 ## Usage
 
+All commands require `--project PATH` to specify the project directory. This directory holds all imported data, computed results, and exported CSVs.
+
 ### 1. Import Fidelity gross proceeds data
 
 From a local PDF:
 
 ```bash
-fbtc-taxgrinder import-proceeds --file path/to/fidelity-whfit-2025.pdf
+fbtc-taxgrinder --project ./my-taxes import-proceeds --file path/to/fidelity-whfit-2025.pdf
 ```
 
 From a URL:
 
 ```bash
-fbtc-taxgrinder import-proceeds --url https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/research/1185828.2.0_WHFIT%20Annual%20Stmt%20UDA_FBTC_2025.pdf
+fbtc-taxgrinder --project ./my-taxes import-proceeds --url https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/research/1185828.2.0_WHFIT%20Annual%20Stmt%20UDA_FBTC_2025.pdf
 ```
 
 Fidelity publishes WHFIT annual statements for each tax year:
@@ -40,13 +42,13 @@ Fidelity publishes WHFIT annual statements for each tax year:
 ### 2. Import trades from ETrade
 
 ```bash
-fbtc-taxgrinder import-trades --file path/to/etrade-trades.csv
+fbtc-taxgrinder --project ./my-taxes import-trades --file path/to/etrade-trades.csv
 ```
 
 ### 3. Compute tax lots
 
 ```bash
-fbtc-taxgrinder compute --year 2025
+fbtc-taxgrinder --project ./my-taxes compute --year 2025
 ```
 
 Use `--force` to recompute if results already exist. Two mutually exclusive flags control how buy and sell months are handled:
@@ -57,10 +59,10 @@ Use `--force` to recompute if results already exist. Two mutually exclusive flag
 ### 4. Export results
 
 ```bash
-fbtc-taxgrinder export --year 2025 --output ./output
+fbtc-taxgrinder --project ./my-taxes export --year 2025
 ```
 
-Generates three CSV files:
+Generates three CSV files in `<project>/output/`:
 - `2025_monthly.csv` — Monthly breakdown per lot (days held, expenses, gains)
 - `2025_dispositions.csv` — Individual sell transactions with gain/loss
 - `2025_summary.csv` — Annual totals
@@ -68,11 +70,9 @@ Generates three CSV files:
 ### Other commands
 
 ```bash
-fbtc-taxgrinder lots      # List all lots and sell events
-fbtc-taxgrinder status    # Show import/compute status
+fbtc-taxgrinder --project ./my-taxes lots      # List all lots and sell events
+fbtc-taxgrinder --project ./my-taxes status    # Show import/compute status
 ```
-
-All commands accept `--data-dir PATH` to specify the data directory (defaults to `./data`).
 
 ## How it works
 
