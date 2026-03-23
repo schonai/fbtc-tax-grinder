@@ -1,3 +1,5 @@
+"""Core domain dataclasses for FBTC tax lot computation."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -7,6 +9,8 @@ from decimal import Decimal
 
 @dataclass
 class LotEvent:
+    """A sell event recorded against a lot."""
+
     type: str  # "sell"
     date: date
     shares: Decimal
@@ -17,6 +21,8 @@ class LotEvent:
 
 @dataclass
 class Lot:
+    """A purchased tax lot with its trade history."""
+
     id: str
     purchase_date: date
     original_shares: Decimal
@@ -37,6 +43,8 @@ class Lot:
 
 @dataclass
 class LotState:
+    """Year-end snapshot of a lot's adjusted values."""
+
     adj_btc: Decimal
     adj_basis: Decimal
     shares: Decimal
@@ -44,12 +52,16 @@ class LotState:
 
 @dataclass
 class MonthProceeds:
+    """Monthly BTC sold and USD proceeds per share from Fidelity PDF."""
+
     btc_sold_per_share: Decimal
     proceeds_per_share_usd: Decimal
 
 
 @dataclass
 class YearProceeds:
+    """Full year of daily and monthly proceeds data from a Fidelity PDF."""
+
     daily: dict[date, Decimal]  # date -> btc_per_share
     monthly: dict[date, MonthProceeds]  # month_end_date -> MonthProceeds
     source: str
@@ -57,6 +69,8 @@ class YearProceeds:
 
 @dataclass
 class ExpenseResult:
+    """Result of the 6-step expense calculation for one lot-month."""
+
     sell_date: date
     days_held: Decimal
     days_in_month: Decimal
@@ -71,6 +85,8 @@ class ExpenseResult:
 
 @dataclass
 class Disposition:
+    """A share disposition (sale) with proceeds and gain/loss."""
+
     lot_id: str
     disposition_id: str
     date_sold: date
@@ -83,6 +99,8 @@ class Disposition:
 
 @dataclass
 class YearResult:
+    """Aggregated computation results for an entire tax year."""
+
     year: int
     lot_results: dict[str, list[ExpenseResult]]  # lot_id -> per-sell-date results
     dispositions: list[Disposition]

@@ -1,5 +1,6 @@
+"""Shared pytest fixtures for test suite."""
+
 import pytest
-from pathlib import Path
 
 
 @pytest.fixture

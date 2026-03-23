@@ -1,3 +1,5 @@
+"""WHFIT 6-step gain/loss computation engine for FBTC tax lots."""
+
 from __future__ import annotations
 
 import calendar
@@ -7,17 +9,28 @@ from decimal import Decimal
 from enum import Enum
 
 from fbtc_taxgrinder.models import (
-    Disposition, Lot, LotEvent, LotState, MonthProceeds, ExpenseResult, YearProceeds, YearResult,
+    Disposition,
+    Lot,
+    LotEvent,
+    LotState,
+    MonthProceeds,
+    ExpenseResult,
+    YearProceeds,
+    YearResult,
 )
 
 
 class HoldingMode(Enum):
+    """How to count days held in the purchase month."""
+
     FULL_MONTH = "full_month"
     PRORATE = "prorate"
 
 
 @dataclass
 class PeriodResult:
+    """Result of computing Steps 1-6 for a single contiguous period."""
+
     total_btc_sold: Decimal
     cost_basis_of_sold: Decimal
     total_expense: Decimal
@@ -85,6 +98,8 @@ def compute_period(
 
 @dataclass
 class LotMonthInput:
+    """Input parameters for computing a single lot-month."""
+
     lot: Lot
     year: int
     month: int
@@ -96,6 +111,8 @@ class LotMonthInput:
 
 @dataclass
 class LotMonthOutput:
+    """Output from computing a single lot-month."""
+
     month_result: ExpenseResult
     dispositions: list[Disposition]
     new_state: LotState
@@ -137,13 +154,18 @@ def _handle_sells_full_month(
             )
         disposed_btc = adj_btc * (event.shares / shares)
         disposed_basis = adj_basis * (event.shares / shares)
-        dispositions.append(Disposition(
-            lot_id=inp.lot.id, disposition_id=event.disposition_id,
-            date_sold=event.date, shares_sold=event.shares,
-            proceeds=event.proceeds, disposed_btc=disposed_btc,
-            disposed_basis=disposed_basis,
-            gain_loss=event.proceeds - disposed_basis,
-        ))
+        dispositions.append(
+            Disposition(
+                lot_id=inp.lot.id,
+                disposition_id=event.disposition_id,
+                date_sold=event.date,
+                shares_sold=event.shares,
+                proceeds=event.proceeds,
+                disposed_btc=disposed_btc,
+                disposed_basis=disposed_basis,
+                gain_loss=event.proceeds - disposed_basis,
+            )
+        )
         adj_btc -= disposed_btc
         adj_basis -= disposed_basis
         shares -= event.shares
@@ -153,8 +175,11 @@ def _handle_sells_full_month(
     # trust expense; only shares still held at month-end participate.
     if shares > 0:
         pr = compute_period(
-            days_held=full_days_held, days_in_month=days_in_month,
-            shares=shares, adj_btc=adj_btc, adj_basis=adj_basis,
+            days_held=full_days_held,
+            days_in_month=days_in_month,
+            shares=shares,
+            adj_btc=adj_btc,
+            adj_basis=adj_basis,
             monthly_btc_sold_per_share=inp.month_proceeds.btc_sold_per_share,
             monthly_proceeds_per_share_usd=inp.month_proceeds.proceeds_per_share_usd,
         )
@@ -166,9 +191,13 @@ def _handle_sells_full_month(
         adj_basis = pr.adj_basis
 
     return _SellPhaseResult(
-        adj_btc=adj_btc, adj_basis=adj_basis, shares=shares,
-        total_btc_sold=total_btc_sold, total_cost_basis=total_cost_basis,
-        total_expense=total_expense, total_gain_loss=total_gain_loss,
+        adj_btc=adj_btc,
+        adj_basis=adj_basis,
+        shares=shares,
+        total_btc_sold=total_btc_sold,
+        total_cost_basis=total_cost_basis,
+        total_expense=total_expense,
+        total_gain_loss=total_gain_loss,
         dispositions=dispositions,
     )
 
@@ -196,8 +225,11 @@ def _handle_sells_prorate(
         pre_days = Decimal(str((event.date - current_start).days))
         if pre_days > 0:
             pr = compute_period(
-                days_held=pre_days, days_in_month=days_in_month,
-                shares=shares, adj_btc=adj_btc, adj_basis=adj_basis,
+                days_held=pre_days,
+                days_in_month=days_in_month,
+                shares=shares,
+                adj_btc=adj_btc,
+                adj_basis=adj_basis,
                 monthly_btc_sold_per_share=inp.month_proceeds.btc_sold_per_share,
                 monthly_proceeds_per_share_usd=inp.month_proceeds.proceeds_per_share_usd,
             )
@@ -214,13 +246,18 @@ def _handle_sells_prorate(
             )
         disposed_btc = adj_btc * (event.shares / shares)
         disposed_basis = adj_basis * (event.shares / shares)
-        dispositions.append(Disposition(
-            lot_id=inp.lot.id, disposition_id=event.disposition_id,
-            date_sold=event.date, shares_sold=event.shares,
-            proceeds=event.proceeds, disposed_btc=disposed_btc,
-            disposed_basis=disposed_basis,
-            gain_loss=event.proceeds - disposed_basis,
-        ))
+        dispositions.append(
+            Disposition(
+                lot_id=inp.lot.id,
+                disposition_id=event.disposition_id,
+                date_sold=event.date,
+                shares_sold=event.shares,
+                proceeds=event.proceeds,
+                disposed_btc=disposed_btc,
+                disposed_basis=disposed_basis,
+                gain_loss=event.proceeds - disposed_basis,
+            )
+        )
         adj_btc -= disposed_btc
         adj_basis -= disposed_basis
         shares -= event.shares
@@ -232,8 +269,11 @@ def _handle_sells_prorate(
         post_days = Decimal(str((month_end - current_start).days)) + 1
         if post_days > 0:
             pr = compute_period(
-                days_held=post_days, days_in_month=days_in_month,
-                shares=shares, adj_btc=adj_btc, adj_basis=adj_basis,
+                days_held=post_days,
+                days_in_month=days_in_month,
+                shares=shares,
+                adj_btc=adj_btc,
+                adj_basis=adj_basis,
                 monthly_btc_sold_per_share=inp.month_proceeds.btc_sold_per_share,
                 monthly_proceeds_per_share_usd=inp.month_proceeds.proceeds_per_share_usd,
             )
@@ -245,9 +285,13 @@ def _handle_sells_prorate(
             adj_basis = pr.adj_basis
 
     return _SellPhaseResult(
-        adj_btc=adj_btc, adj_basis=adj_basis, shares=shares,
-        total_btc_sold=total_btc_sold, total_cost_basis=total_cost_basis,
-        total_expense=total_expense, total_gain_loss=total_gain_loss,
+        adj_btc=adj_btc,
+        adj_basis=adj_basis,
+        shares=shares,
+        total_btc_sold=total_btc_sold,
+        total_cost_basis=total_cost_basis,
+        total_expense=total_expense,
+        total_gain_loss=total_gain_loss,
         dispositions=dispositions,
     )
 
@@ -261,7 +305,9 @@ def _month_start(year: int, month: int) -> date:
     return date(year, month, 1)
 
 
-def compute_lot_month(inp: LotMonthInput, *, holding_mode: HoldingMode = HoldingMode.FULL_MONTH) -> LotMonthOutput | None:
+def compute_lot_month(
+    inp: LotMonthInput, *, holding_mode: HoldingMode = HoldingMode.FULL_MONTH
+) -> LotMonthOutput | None:
     """Compute one month for one lot, handling mid-month sells.
 
     FULL_MONTH (default): lots purchased mid-month use the full month as their
@@ -293,10 +339,9 @@ def compute_lot_month(inp: LotMonthInput, *, holding_mode: HoldingMode = Holding
 
     # Find sell events in this month for this lot
     sell_events = [
-        e for e in inp.lot.events
-        if e.type == "sell"
-        and e.date.year == inp.year
-        and e.date.month == inp.month
+        e
+        for e in inp.lot.events
+        if e.type == "sell" and e.date.year == inp.year and e.date.month == inp.month
     ]
     sell_events.sort(key=lambda e: e.date)
 
@@ -312,7 +357,6 @@ def compute_lot_month(inp: LotMonthInput, *, holding_mode: HoldingMode = Holding
             shares=shares,
             adj_btc=adj_btc,
             adj_basis=adj_basis,
-
             monthly_btc_sold_per_share=inp.month_proceeds.btc_sold_per_share,
             monthly_proceeds_per_share_usd=inp.month_proceeds.proceeds_per_share_usd,
         )
@@ -330,20 +374,30 @@ def compute_lot_month(inp: LotMonthInput, *, holding_mode: HoldingMode = Holding
                 adj_basis=pr.adj_basis,
             ),
             dispositions=[],
-            new_state=LotState(adj_btc=pr.adj_btc, adj_basis=pr.adj_basis, shares=shares),
+            new_state=LotState(
+                adj_btc=pr.adj_btc, adj_basis=pr.adj_basis, shares=shares
+            ),
         )
 
     if holding_mode is HoldingMode.FULL_MONTH:
         result = _handle_sells_full_month(
-            sell_events=sell_events, inp=inp,
-            adj_btc=adj_btc, adj_basis=adj_basis, shares=shares,
-            full_days_held=full_days_held, days_in_month=days_in_month,
+            sell_events=sell_events,
+            inp=inp,
+            adj_btc=adj_btc,
+            adj_basis=adj_basis,
+            shares=shares,
+            full_days_held=full_days_held,
+            days_in_month=days_in_month,
         )
     else:
         result = _handle_sells_prorate(
-            sell_events=sell_events, inp=inp,
-            adj_btc=adj_btc, adj_basis=adj_basis, shares=shares,
-            days_in_month=days_in_month, period_start=period_start,
+            sell_events=sell_events,
+            inp=inp,
+            adj_btc=adj_btc,
+            adj_basis=adj_basis,
+            shares=shares,
+            days_in_month=days_in_month,
+            period_start=period_start,
             month_end=month_end,
         )
 
@@ -361,7 +415,9 @@ def compute_lot_month(inp: LotMonthInput, *, holding_mode: HoldingMode = Holding
             adj_basis=result.adj_basis,
         ),
         dispositions=result.dispositions,
-        new_state=LotState(adj_btc=result.adj_btc, adj_basis=result.adj_basis, shares=result.shares),
+        new_state=LotState(
+            adj_btc=result.adj_btc, adj_basis=result.adj_basis, shares=result.shares
+        ),
     )
 
 

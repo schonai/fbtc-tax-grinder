@@ -1,3 +1,5 @@
+"""Persistence layer for year-end lot state snapshots."""
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -1,12 +1,13 @@
-from decimal import Decimal
+"""Tests for core dataclass models."""
+
 from datetime import date
-from fbtc_taxgrinder.models import (
-    Lot, LotEvent, LotState, ExpenseResult, Disposition,
-    YearResult, MonthProceeds, YearProceeds,
-)
+from decimal import Decimal
+
+from fbtc_taxgrinder.models import Lot, LotEvent, LotState, MonthProceeds
 
 
 def test_lot_total_cost():
+    """Verify Lot.total_cost stores the correct value."""
     lot = Lot(
         id="lot-1",
         purchase_date=date(2024, 1, 25),
@@ -22,6 +23,7 @@ def test_lot_total_cost():
 
 
 def test_lot_shares_at_date_no_events():
+    """Lot with no events returns original shares."""
     lot = Lot(
         id="lot-1",
         purchase_date=date(2024, 1, 25),
@@ -36,6 +38,7 @@ def test_lot_shares_at_date_no_events():
 
 
 def test_lot_shares_at_date_after_sell():
+    """Shares decrease after a sell event date."""
     lot = Lot(
         id="lot-1",
         purchase_date=date(2024, 1, 25),
@@ -61,6 +64,7 @@ def test_lot_shares_at_date_after_sell():
 
 
 def test_lot_state_roundtrip():
+    """LotState stores adjusted BTC and basis correctly."""
     state = LotState(
         adj_btc=Decimal("0.17821032"),
         adj_basis=Decimal("7093.928514"),
@@ -70,6 +74,7 @@ def test_lot_state_roundtrip():
 
 
 def test_month_proceeds():
+    """MonthProceeds stores BTC sold per share correctly."""
     mp = MonthProceeds(
         btc_sold_per_share=Decimal("0.00000018"),
         proceeds_per_share_usd=Decimal("0.01070327"),
@@ -89,14 +94,20 @@ def test_lot_shares_at_date_multiple_sells():
         source_file="test.csv",
         events=[
             LotEvent(
-                type="sell", date=date(2025, 3, 10),
-                shares=Decimal("20"), price_per_share=Decimal("60.00"),
-                proceeds=Decimal("1200.00"), disposition_id="sell-1",
+                type="sell",
+                date=date(2025, 3, 10),
+                shares=Decimal("20"),
+                price_per_share=Decimal("60.00"),
+                proceeds=Decimal("1200.00"),
+                disposition_id="sell-1",
             ),
             LotEvent(
-                type="sell", date=date(2025, 6, 15),
-                shares=Decimal("30"), price_per_share=Decimal("65.00"),
-                proceeds=Decimal("1950.00"), disposition_id="sell-2",
+                type="sell",
+                date=date(2025, 6, 15),
+                shares=Decimal("30"),
+                price_per_share=Decimal("65.00"),
+                proceeds=Decimal("1950.00"),
+                disposition_id="sell-2",
             ),
         ],
     )

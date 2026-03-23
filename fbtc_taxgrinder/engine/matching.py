@@ -1,3 +1,5 @@
+"""Sell-to-lot matching with ambiguity detection."""
+
 from __future__ import annotations
 
 from datetime import date
@@ -14,7 +16,8 @@ def match_sell_to_lot(
 ) -> Lot:
     """Match a sell transaction to a lot. Raises ValueError if ambiguous or no match."""
     candidates = [
-        lot for lot in lots
+        lot
+        for lot in lots
         if lot.shares_at_date(sell_date) >= sell_shares
         and lot.purchase_date < sell_date
     ]
@@ -28,10 +31,7 @@ def match_sell_to_lot(
         return candidates[0]
 
     # Check for exact match (sell_shares == remaining shares)
-    exact = [
-        lot for lot in candidates
-        if lot.shares_at_date(sell_date) == sell_shares
-    ]
+    exact = [lot for lot in candidates if lot.shares_at_date(sell_date) == sell_shares]
     if len(exact) == 1:
         return exact[0]
 

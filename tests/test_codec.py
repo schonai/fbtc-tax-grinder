@@ -1,14 +1,23 @@
+"""Tests for JSON codec encode/decode round-trips."""
+
 from datetime import date
 from decimal import Decimal
 
-from fbtc_taxgrinder.db.codec import decode, encode
+from fbtc_taxgrinder.db.codec import _reconstruct, decode, encode
 from fbtc_taxgrinder.models import (
-    Disposition, Lot, LotEvent, LotState, MonthProceeds, ExpenseResult,
-    YearProceeds, YearResult,
+    Disposition,
+    Lot,
+    LotEvent,
+    LotState,
+    MonthProceeds,
+    ExpenseResult,
+    YearProceeds,
+    YearResult,
 )
 
 
 def test_lot_roundtrip():
+    """Lot with events survives encode/decode round-trip."""
     lot = Lot(
         id="lot-1",
         purchase_date=date(2024, 1, 25),
@@ -40,6 +49,7 @@ def test_lot_roundtrip():
 
 
 def test_year_proceeds_roundtrip():
+    """YearProceeds with daily and monthly data round-trips correctly."""
     yp = YearProceeds(
         daily={date(2024, 1, 11): Decimal("0.00087448")},
         monthly={
@@ -58,6 +68,7 @@ def test_year_proceeds_roundtrip():
 
 
 def test_lot_state_dict_roundtrip():
+    """Dict of LotState values round-trips correctly."""
     states = {
         "lot-1": LotState(
             adj_btc=Decimal("0.17821032"),
@@ -72,13 +83,17 @@ def test_lot_state_dict_roundtrip():
 
 
 def test_year_result_roundtrip():
+    """YearResult with dispositions and end_states round-trips correctly."""
     yr = YearResult(
         year=2024,
         lot_results={
             "lot-1": [
                 ExpenseResult(
-                    sell_date=date(2024, 8, 31), days_held=Decimal("31"), days_in_month=Decimal("31"),
-                    shares=Decimal("204"), total_btc_sold=Decimal("0.00003672"),
+                    sell_date=date(2024, 8, 31),
+                    days_held=Decimal("31"),
+                    days_in_month=Decimal("31"),
+                    shares=Decimal("204"),
+                    total_btc_sold=Decimal("0.00003672"),
                     cost_basis_of_sold=Decimal("1.461695179"),
                     total_expense=Decimal("2.18346708"),
                     gain_loss=Decimal("0.7217719012"),
@@ -121,24 +136,25 @@ def test_year_result_roundtrip():
 
 
 def test_empty_list():
+    """Empty list round-trips to empty list."""
     text = encode([])
     loaded = decode(list[Lot], text)
     assert loaded == []
 
 
 def test_plain_values_passthrough():
+    """Plain int and str decode as-is."""
     assert decode(int, "42") == 42
     assert decode(str, '"hello"') == "hello"
 
 
 def test_decode_none():
     """_reconstruct returns None when data is None."""
-    from fbtc_taxgrinder.db.codec import _reconstruct
     assert _reconstruct(Decimal, None) is None
 
 
 def test_encode_no_scientific_notation():
-    """Decimal values with small exponents must serialize as fixed-point, not scientific notation."""
+    """Small-exponent Decimals must serialize as fixed-point, not scientific."""
     yp = YearProceeds(
         daily={},
         monthly={
@@ -156,7 +172,6 @@ def test_encode_no_scientific_notation():
 
 def test_reconstruct_unknown_type_fallback():
     """_reconstruct returns data as-is for unknown/unhandled types."""
-    from fbtc_taxgrinder.db.codec import _reconstruct
     # float is not handled by any branch — should fall through to `return data`
     assert _reconstruct(float, 3.14) == 3.14
     assert _reconstruct(bool, True) is True

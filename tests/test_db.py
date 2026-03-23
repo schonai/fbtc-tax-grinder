@@ -1,13 +1,20 @@
-from decimal import Decimal
+"""Tests for JSON persistence layer (lots, proceeds, state, results)."""
+
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from fbtc_taxgrinder.db import lots, proceeds, results, state
 from fbtc_taxgrinder.db.codec import encode
 from fbtc_taxgrinder.models import (
-    Lot, LotEvent, LotState, MonthProceeds, ExpenseResult,
-    YearProceeds, YearResult,
+    Lot,
+    LotEvent,
+    LotState,
+    MonthProceeds,
+    ExpenseResult,
+    YearProceeds,
+    YearResult,
 )
 
 
@@ -34,7 +41,10 @@ def _make_lot() -> Lot:
 
 
 class TestLots:
+    """Tests for lots save/load."""
+
     def test_save_writes_to_correct_path(self):
+        """Save writes encoded JSON to lots.json."""
         mock_path = MagicMock(spec=Path)
         data_dir = MagicMock(spec=Path)
         data_dir.__truediv__ = MagicMock(return_value=mock_path)
@@ -46,6 +56,7 @@ class TestLots:
         mock_path.write_text.assert_called_once()
 
     def test_load_returns_empty_when_missing(self):
+        """Load returns empty list when lots.json does not exist."""
         mock_path = MagicMock(spec=Path)
         mock_path.exists.return_value = False
         data_dir = MagicMock(spec=Path)
@@ -54,6 +65,7 @@ class TestLots:
         assert lots.load(data_dir) == []
 
     def test_load_decodes_saved_data(self):
+        """Load decodes previously saved lot data."""
         lot = _make_lot()
         encoded = encode([lot])
 
@@ -70,6 +82,8 @@ class TestLots:
 
 
 class TestProceeds:
+    """Tests for proceeds save/load."""
+
     def _make_yp(self) -> YearProceeds:
         return YearProceeds(
             daily={date(2024, 1, 11): Decimal("0.00087448")},
@@ -83,6 +97,7 @@ class TestProceeds:
         )
 
     def test_save_writes_to_correct_path(self):
+        """Save writes to proceeds/{year}.json."""
         mock_subdir = MagicMock(spec=Path)
         mock_file = MagicMock(spec=Path)
         data_dir = MagicMock(spec=Path)
@@ -96,6 +111,7 @@ class TestProceeds:
         mock_file.write_text.assert_called_once()
 
     def test_load_returns_none_when_missing(self):
+        """Load returns None when proceeds file does not exist."""
         mock_subdir = MagicMock(spec=Path)
         mock_file = MagicMock(spec=Path)
         mock_file.exists.return_value = False
@@ -106,6 +122,7 @@ class TestProceeds:
         assert proceeds.load(data_dir, 2024) is None
 
     def test_load_decodes_saved_data(self):
+        """Load decodes previously saved proceeds data."""
         yp = self._make_yp()
         encoded = encode(yp)
 
@@ -123,6 +140,8 @@ class TestProceeds:
 
 
 class TestState:
+    """Tests for state save/load."""
+
     def _make_states(self) -> dict[str, LotState]:
         return {
             "lot-1": LotState(
@@ -133,6 +152,7 @@ class TestState:
         }
 
     def test_load_returns_none_when_missing(self):
+        """Load returns None when state file does not exist."""
         mock_subdir = MagicMock(spec=Path)
         mock_file = MagicMock(spec=Path)
         mock_file.exists.return_value = False
@@ -143,6 +163,7 @@ class TestState:
         assert state.load(data_dir, 2024) is None
 
     def test_load_decodes_saved_data(self):
+        """Load decodes previously saved state data."""
         states = self._make_states()
         encoded = encode(states)
 
@@ -160,14 +181,19 @@ class TestState:
 
 
 class TestResults:
+    """Tests for results save/load."""
+
     def _make_yr(self) -> YearResult:
         return YearResult(
             year=2024,
             lot_results={
                 "lot-1": [
                     ExpenseResult(
-                        sell_date=date(2024, 8, 31), days_held=Decimal("31"), days_in_month=Decimal("31"),
-                        shares=Decimal("204"), total_btc_sold=Decimal("0.00003672"),
+                        sell_date=date(2024, 8, 31),
+                        days_held=Decimal("31"),
+                        days_in_month=Decimal("31"),
+                        shares=Decimal("204"),
+                        total_btc_sold=Decimal("0.00003672"),
                         cost_basis_of_sold=Decimal("1.461695179"),
                         total_expense=Decimal("2.18346708"),
                         gain_loss=Decimal("0.7217719012"),
@@ -184,6 +210,7 @@ class TestResults:
         )
 
     def test_load_returns_none_when_missing(self):
+        """Load returns None when results file does not exist."""
         mock_subdir = MagicMock(spec=Path)
         mock_file = MagicMock(spec=Path)
         mock_file.exists.return_value = False
@@ -194,6 +221,7 @@ class TestResults:
         assert results.load(data_dir, 2024) is None
 
     def test_load_decodes_saved_data(self):
+        """Load decodes previously saved results data."""
         yr = self._make_yr()
         encoded = encode(yr)
 

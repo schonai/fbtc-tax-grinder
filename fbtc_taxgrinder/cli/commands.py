@@ -1,3 +1,5 @@
+"""CLI commands for FBTC Tax Grinder."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -13,7 +15,10 @@ from fbtc_taxgrinder.engine.matching import match_sell_to_lot
 from fbtc_taxgrinder.export.csv_export import export_year_csv
 from fbtc_taxgrinder.models import Lot, LotEvent
 from fbtc_taxgrinder.parsers.etrade import parse_etrade_csv
-from fbtc_taxgrinder.parsers.fidelity_pdf import parse_fidelity_pdf_file, parse_fidelity_pdf_url
+from fbtc_taxgrinder.parsers.fidelity_pdf import (
+    parse_fidelity_pdf_file,
+    parse_fidelity_pdf_url,
+)
 
 
 def _project_dir(ctx: click.Context) -> Path:
@@ -79,7 +84,9 @@ def import_proceeds(ctx: click.Context, url: str | None, file_path: str | None) 
     dd = _project_dir(ctx)
     existing = proceeds_db.load(dd, year)
     if existing is not None:
-        click.echo(f"Proceeds for {year} already imported ({existing.source}). Skipping.")
+        click.echo(
+            f"Proceeds for {year} already imported ({existing.source}). Skipping."
+        )
         return
 
     proceeds_db.save(dd, year, yp)
@@ -121,8 +128,7 @@ def import_trades(ctx: click.Context, file_path: str) -> None:
         yp = proceeds_db.load(dd, year)
         if yp is None:
             raise click.ClickException(
-                f"Proceeds for {year} not imported. "
-                f"Run 'import-proceeds' first."
+                f"Proceeds for {year} not imported. " f"Run 'import-proceeds' first."
             )
         btc = yp.daily.get(buy.date)
         if btc is None:
@@ -158,7 +164,8 @@ def import_trades(ctx: click.Context, file_path: str) -> None:
             raise click.ClickException(str(e))
         # Check idempotency: skip if this sell already recorded
         already_exists = any(
-            e.date == sell.date and e.shares == sell.shares
+            e.date == sell.date
+            and e.shares == sell.shares
             and e.price_per_share == sell.price_per_share
             for e in matched_lot.events
         )
@@ -166,14 +173,16 @@ def import_trades(ctx: click.Context, file_path: str) -> None:
             continue
 
         sell_count = sum(1 for e in matched_lot.events if e.type == "sell")
-        matched_lot.events.append(LotEvent(
-            type="sell",
-            date=sell.date,
-            shares=sell.shares,
-            price_per_share=sell.price_per_share,
-            proceeds=sell.proceeds,
-            disposition_id=f"{matched_lot.id}-sell-{sell_count + 1}",
-        ))
+        matched_lot.events.append(
+            LotEvent(
+                type="sell",
+                date=sell.date,
+                shares=sell.shares,
+                price_per_share=sell.price_per_share,
+                proceeds=sell.proceeds,
+                disposition_id=f"{matched_lot.id}-sell-{sell_count + 1}",
+            )
+        )
         new_sells += 1
 
     lots_db.save(dd, existing_lots)
@@ -183,16 +192,25 @@ def import_trades(ctx: click.Context, file_path: str) -> None:
 @cli.command()
 @click.option("--year", required=True, type=int, help="Tax year to compute.")
 @click.option("--force", is_flag=True, help="Recompute even if results exist.")
-@click.option("--full-month", is_flag=True, default=False,
-              help="Use full-month granularity for buy and sell months. "
-              "This is the default and matches Fidelity's 1099 calculations.")
-@click.option("--prorate", is_flag=True, default=False,
-              help="Prorate buy and sell months by actual days held. "
-              "This matches Fidelity's WHFIT document example "
-              "but produces values that differ from the 1099.")
+@click.option(
+    "--full-month",
+    is_flag=True,
+    default=False,
+    help="Use full-month granularity for buy and sell months. "
+    "This is the default and matches Fidelity's 1099 calculations.",
+)
+@click.option(
+    "--prorate",
+    is_flag=True,
+    default=False,
+    help="Prorate buy and sell months by actual days held. "
+    "This matches Fidelity's WHFIT document example "
+    "but produces values that differ from the 1099.",
+)
 @click.pass_context
-def compute(ctx: click.Context, year: int, force: bool,
-            full_month: bool, prorate: bool) -> None:
+def compute(
+    ctx: click.Context, year: int, force: bool, full_month: bool, prorate: bool
+) -> None:
     """Compute tax lots for a given year."""
     if full_month and prorate:
         raise click.UsageError("--full-month and --prorate are mutually exclusive.")

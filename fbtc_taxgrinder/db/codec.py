@@ -1,3 +1,5 @@
+"""JSON codec for serializing/deserializing dataclasses with Decimal and date."""
+
 from __future__ import annotations
 
 import dataclasses
@@ -22,7 +24,7 @@ def _prepare(obj: object) -> object:
     if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
         return {k: _prepare(v) for k, v in dataclasses.asdict(obj).items()}
     if isinstance(obj, Decimal):
-        return format(obj, 'f')
+        return format(obj, "f")
     if isinstance(obj, date):
         return obj.isoformat()
     if isinstance(obj, dict):
@@ -53,7 +55,10 @@ def _reconstruct(cls: type, data: object) -> object:
 
     if origin is dict:
         key_type, val_type = args
-        return {_reconstruct(key_type, k): _reconstruct(val_type, v) for k, v in data.items()}
+        return {
+            _reconstruct(key_type, k): _reconstruct(val_type, v)
+            for k, v in data.items()
+        }
 
     if dataclasses.is_dataclass(cls):
         hints = get_type_hints(cls)
