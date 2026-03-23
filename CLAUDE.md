@@ -44,6 +44,10 @@ Year-end `LotState` snapshots (adjusted BTC, adjusted basis, remaining shares) a
 
 - [FBTC 2025 Grantor Trust Tax Reporting Statement](docs/fbtc-2025-grantor-trust-tax-reporting.md) — Fidelity's WHFIT tax reporting guidance including the 6-step gain/loss and basis calculation example for FBTC shareholders.
 
+## Markdown
+
+- When writing markdown tables, ensure all rows have the same total width so pipe characters align across every row (markdownlint MD060).
+
 ## Testing
 
 - Prefer mocks over filesystem/expensive resources in unit tests

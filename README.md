@@ -4,6 +4,23 @@ Python CLI to compute WHFIT tax lots and gain/loss for Fidelity Bitcoin Fund (FB
 
 Implements Fidelity's official 2025 grantor trust 6-step gain/loss and basis calculation on a per-lot, per-month basis. Ingests data from Fidelity WHFIT PDFs and ETrade trade CSVs, then exports IRS-reportable results.
 
+## Why?
+
+FBTC is structured as a grantor trust, which means shareholders are taxed directly on the trust's Bitcoin activity — not just on share sales. Fidelity publishes a WHFIT tax reporting statement each year with daily BTC-per-share data and monthly expense figures, but they don't compute per-lot results for you. This tool does that: it takes your trade history and Fidelity's published data, then calculates the gain/loss and expense figures you need for your tax return.
+
+## Quick start
+
+```bash
+pip3 install -e ".[dev]"
+
+fbtc-taxgrinder --project ./my-taxes import-proceeds --url <fidelity-whfit-pdf-url>
+fbtc-taxgrinder --project ./my-taxes import-trades --file etrade-trades.csv
+fbtc-taxgrinder --project ./my-taxes compute --year 2025
+fbtc-taxgrinder --project ./my-taxes export --year 2025
+```
+
+Output lands in `./my-taxes/output/` as three CSVs (monthly breakdown, dispositions, and annual summary).
+
 ## Installation
 
 Requires Python 3.12+.
@@ -29,15 +46,15 @@ fbtc-taxgrinder --project ./my-taxes import-proceeds --file path/to/fidelity-whf
 From a URL:
 
 ```bash
-fbtc-taxgrinder --project ./my-taxes import-proceeds --url https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/research/1185828.2.0_WHFIT%20Annual%20Stmt%20UDA_FBTC_2025.pdf
+fbtc-taxgrinder --project ./my-taxes import-proceeds --url <pdf-url>
 ```
 
 Fidelity publishes WHFIT annual statements for each tax year:
 
-| Tax Year | PDF URL |
-|----------|---------|
-| 2024 | https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/research/1185828.1.0-FBTCWHFITAnnualStmt2024.pdf |
-| 2025 | https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/research/1185828.2.0_WHFIT%20Annual%20Stmt%20UDA_FBTC_2025.pdf |
+| Tax Year | PDF                                                                                                                                                                   |
+|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 2024     | [FBTC WHFIT Annual Statement 2024](https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/research/1185828.1.0-FBTCWHFITAnnualStmt2024.pdf)               |
+| 2025     | [FBTC WHFIT Annual Statement 2025](https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/research/1185828.2.0_WHFIT%20Annual%20Stmt%20UDA_FBTC_2025.pdf) |
 
 ### 2. Import trades from ETrade
 
@@ -63,9 +80,12 @@ fbtc-taxgrinder --project ./my-taxes export --year 2025
 ```
 
 Generates three CSV files in `<project>/output/`:
-- `2025_monthly.csv` — Monthly breakdown per lot (days held, expenses, gains)
-- `2025_dispositions.csv` — Individual sell transactions with gain/loss
-- `2025_summary.csv` — Annual totals
+
+| File                     | Contents                                                 |
+|--------------------------|----------------------------------------------------------|
+| `2025_monthly.csv`       | Monthly breakdown per lot (days held, expenses, gains)   |
+| `2025_dispositions.csv`  | Individual sell transactions with gain/loss              |
+| `2025_summary.csv`       | Annual totals                                            |
 
 ### Other commands
 
@@ -75,6 +95,11 @@ fbtc-taxgrinder --project ./my-taxes status    # Show import/compute status
 ```
 
 ## How it works
+
+```text
+Fidelity PDF ──> import-proceeds ──> JSON state ──> compute ──> export ──> CSVs
+ETrade CSV ───> import-trades ────────┘
+```
 
 The tool follows Fidelity's 6-step WHFIT calculation for each lot in each month:
 
@@ -96,6 +121,23 @@ This tool defaults to full-month granularity (`--full-month`) to match the 1099.
 ## Known limitations
 
 **Penny-level rounding discrepancy:** This tool maintains full decimal precision throughout all calculation steps and rounds to cents only at CSV export time. Fidelity's published WHFIT example shows a total reportable gain of -$8.65, but neither full-precision-then-round nor intermediate rounding exactly reproduces that figure. The exact internal rounding strategy Fidelity uses cannot be determined from published data. As a result, computed values may differ from Fidelity's by 1-2 cents on individual line items.
+
+## Development
+
+```bash
+# Run all tests
+pytest
+
+# Run tests with coverage (must be >= 90%)
+pytest --cov=fbtc_taxgrinder --cov-report=term-missing --cov-fail-under=90
+
+# Run a single test
+pytest tests/test_compute.py::test_name -v
+```
+
+## License
+
+[MIT](LICENSE)
 
 ## Disclaimer
 
