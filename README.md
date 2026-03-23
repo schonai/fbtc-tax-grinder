@@ -1,5 +1,7 @@
 # FBTC Tax Grinder
 
+[![CI](https://github.com/schonai/fbtc-tax-grinder/actions/workflows/ci.yml/badge.svg)](https://github.com/schonai/fbtc-tax-grinder/actions/workflows/ci.yml)
+
 Python CLI to compute WHFIT tax lots and gain/loss for Fidelity Bitcoin Fund (FBTC) shareholders.
 
 Implements Fidelity's official 2025 grantor trust 6-step gain/loss and basis calculation on a per-lot, per-month basis. Ingests data from Fidelity WHFIT PDFs and ETrade trade CSVs, then exports IRS-reportable results.
