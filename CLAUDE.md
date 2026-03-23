@@ -1,3 +1,5 @@
+# FBTC Tax Grinder — Development Guide
+
 ## Project Overview
 
 FBTC Tax Grinder is a Python CLI that computes IRS-reportable WHFIT tax lots for Fidelity Bitcoin Fund (FBTC) shareholders. It implements Fidelity's official 2025 grantor trust 6-step gain/loss calculation for each lot on a monthly basis.

@@ -71,6 +71,7 @@ For shares purchased on 9/9/2025:
 In the column labeled "Bitcoin Per Share" of the Gross Proceeds File, identify the number of Bitcoin (i.e. 0.00087206 Bitcoin per share) each FBTC share represents on 9/9/2025 (Shareholder ABC's purchase date).
 
 For Shareholder ABC, the total number of Bitcoin acquired for its 9/9/2025 purchase is:
+
 - 0.00087206 Bitcoin/share × 1,000 shares = **0.87206 Bitcoin**
 
 #### Step 2: Calculate the number of Bitcoin sold during 2025 to pay expenses
