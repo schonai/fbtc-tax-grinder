@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
+from enum import Enum
 
 
 @dataclass
@@ -67,6 +68,13 @@ class YearProceeds:
     source: str
 
 
+class HoldingTerm(Enum):
+    """IRS holding period classification for WHFIT expense gain/loss."""
+
+    LONG_TERM = "long_term"
+    SHORT_TERM = "short_term"
+
+
 @dataclass
 class ExpenseResult:
     """Result of the 6-step expense calculation for one lot-month."""
@@ -81,6 +89,7 @@ class ExpenseResult:
     gain_loss: Decimal
     adj_btc: Decimal
     adj_basis: Decimal
+    holding_term: HoldingTerm
 
 
 @dataclass
