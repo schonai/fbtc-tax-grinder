@@ -725,7 +725,7 @@ def test_holding_term_feb29_leap_year():
 
 
 def test_holding_term_transitions_mid_year():
-    """Lot purchased 2024-06-15: short-term through June 2025, long-term from July 2025."""
+    """Lot purchased 2024-06-15: short-term through May 2025, long-term from June 2025."""
     lot = Lot(
         id="lot-1",
         purchase_date=date(2024, 6, 15),
@@ -739,7 +739,7 @@ def test_holding_term_transitions_mid_year():
     proceeds = YearProceeds(
         daily={},
         monthly={
-            date(2025, 6, 30): MonthProceeds(
+            date(2025, 5, 31): MonthProceeds(
                 btc_sold_per_share=Decimal("0.00000018"),
                 proceeds_per_share_usd=Decimal("0.01"),
             ),
@@ -761,13 +761,13 @@ def test_holding_term_transitions_mid_year():
         },
         year=2025,
     )
-    june_results = [
-        r for r in result.lot_results["lot-1"] if r.sell_date == date(2025, 6, 30)
+    may_results = [
+        r for r in result.lot_results["lot-1"] if r.sell_date == date(2025, 5, 31)
     ]
     july_results = [
         r for r in result.lot_results["lot-1"] if r.sell_date == date(2025, 7, 31)
     ]
-    assert len(june_results) == 1
-    assert june_results[0].holding_term == HoldingTerm.SHORT_TERM
+    assert len(may_results) == 1
+    assert may_results[0].holding_term == HoldingTerm.SHORT_TERM
     assert len(july_results) == 1
     assert july_results[0].holding_term == HoldingTerm.LONG_TERM

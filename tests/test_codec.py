@@ -6,6 +6,7 @@ from decimal import Decimal
 from fbtc_taxgrinder.db.codec import _reconstruct, decode, encode
 from fbtc_taxgrinder.models import (
     Disposition,
+    HoldingTerm,
     Lot,
     LotEvent,
     LotState,
@@ -99,6 +100,7 @@ def test_year_result_roundtrip():
                     gain_loss=Decimal("0.7217719012"),
                     adj_btc=Decimal("0.17835720"),
                     adj_basis=Decimal("7099.778305"),
+                    holding_term=HoldingTerm.LONG_TERM,
                 ),
             ],
         },
@@ -133,6 +135,7 @@ def test_year_result_roundtrip():
     assert loaded.dispositions[0].date_sold == date(2025, 12, 23)
     assert loaded.dispositions[0].proceeds == Decimal("1067.08")
     assert loaded.end_states["lot-1"].shares == Decimal("190")
+    assert loaded.lot_results["lot-1"][0].holding_term == HoldingTerm.LONG_TERM
 
 
 def test_empty_list():

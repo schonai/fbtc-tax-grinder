@@ -6,6 +6,7 @@ import dataclasses
 import json
 from datetime import date
 from decimal import Decimal
+from enum import Enum
 from typing import get_args, get_origin, get_type_hints
 
 
@@ -23,6 +24,8 @@ def _prepare(obj: object) -> object:
     """Convert Python objects to JSON-compatible types."""
     if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
         return {k: _prepare(v) for k, v in dataclasses.asdict(obj).items()}
+    if isinstance(obj, Enum):
+        return obj.value
     if isinstance(obj, Decimal):
         return format(obj, "f")
     if isinstance(obj, date):
@@ -46,6 +49,8 @@ def _reconstruct(cls: type, data: object) -> object:
         return data
     if cls is int:
         return data
+    if isinstance(cls, type) and issubclass(cls, Enum):
+        return cls(data)
 
     origin = get_origin(cls)
     args = get_args(cls)

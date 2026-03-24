@@ -5,7 +5,7 @@ from datetime import date
 from decimal import Decimal
 
 from fbtc_taxgrinder.export.csv_export import export_year_csv
-from fbtc_taxgrinder.models import Disposition, ExpenseResult, YearResult
+from fbtc_taxgrinder.models import Disposition, ExpenseResult, HoldingTerm, YearResult
 
 
 def test_export_creates_three_files(tmp_path):
@@ -25,6 +25,7 @@ def test_export_creates_three_files(tmp_path):
                     gain_loss=Decimal("0.72"),
                     adj_btc=Decimal("0.17835720"),
                     adj_basis=Decimal("7099.78"),
+                    holding_term=HoldingTerm.LONG_TERM,
                 ),
             ],
         },
@@ -94,6 +95,7 @@ def test_summary_aggregates_across_lots(tmp_path):
         "total_btc_sold": Decimal("0.0001"),
         "adj_btc": Decimal("0.5"),
         "adj_basis": Decimal("1000"),
+        "holding_term": HoldingTerm.LONG_TERM,
     }
     yr = YearResult(
         year=2024,
@@ -140,6 +142,7 @@ def test_summary_rounds_to_cents(tmp_path):
         "total_btc_sold": Decimal("0.0001"),
         "adj_btc": Decimal("0.5"),
         "adj_basis": Decimal("1000"),
+        "holding_term": HoldingTerm.LONG_TERM,
     }
     yr = YearResult(
         year=2024,

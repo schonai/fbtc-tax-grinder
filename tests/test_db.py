@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 from fbtc_taxgrinder.db import lots, proceeds, results, state
 from fbtc_taxgrinder.db.codec import encode
 from fbtc_taxgrinder.models import (
+    HoldingTerm,
     Lot,
     LotEvent,
     LotState,
@@ -199,6 +200,7 @@ class TestResults:
                         gain_loss=Decimal("0.7217719012"),
                         adj_btc=Decimal("0.17835720"),
                         adj_basis=Decimal("7099.778305"),
+                        holding_term=HoldingTerm.LONG_TERM,
                     ),
                 ],
             },
