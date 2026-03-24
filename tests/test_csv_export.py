@@ -171,3 +171,117 @@ def test_summary_rounds_to_cents(tmp_path):
     assert rows[1]["investment_expense"] == "2.19"
     assert rows[1]["cost_basis_of_expense"] == "1.23"
     assert rows[1]["reportable_gain"] == "0.96"
+
+
+def test_monthly_csv_includes_holding_term(tmp_path):
+    """Monthly CSV rows include the holding_term column."""
+    yr = YearResult(
+        year=2025,
+        lot_results={
+            "lot-1": [
+                ExpenseResult(
+                    sell_date=date(2025, 3, 31),
+                    days_held=Decimal("31"),
+                    days_in_month=Decimal("31"),
+                    shares=Decimal("100"),
+                    total_btc_sold=Decimal("0.00001"),
+                    cost_basis_of_sold=Decimal("0.50"),
+                    total_expense=Decimal("1.00"),
+                    gain_loss=Decimal("0.50"),
+                    adj_btc=Decimal("0.099"),
+                    adj_basis=Decimal("4999.50"),
+                    holding_term=HoldingTerm.LONG_TERM,
+                ),
+            ],
+        },
+        dispositions=[],
+        end_states={},
+        total_investment_expense=Decimal("1.00"),
+        total_reportable_gain=Decimal("0.50"),
+        total_cost_basis_of_expense=Decimal("0.50"),
+    )
+    export_year_csv(yr, tmp_path)
+    with open(tmp_path / "2025_monthly.csv", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    assert rows[0]["holding_term"] == "long_term"
+
+
+def test_summary_csv_holding_term_all_long(tmp_path):
+    """Summary row is long_term when all lots for that date are long_term."""
+    yr = YearResult(
+        year=2025,
+        lot_results={
+            "lot-1": [
+                ExpenseResult(
+                    sell_date=date(2025, 3, 31),
+                    days_held=Decimal("31"), days_in_month=Decimal("31"),
+                    shares=Decimal("100"), total_btc_sold=Decimal("0.00001"),
+                    cost_basis_of_sold=Decimal("0.50"), total_expense=Decimal("1.00"),
+                    gain_loss=Decimal("0.50"), adj_btc=Decimal("0.099"),
+                    adj_basis=Decimal("4999.50"),
+                    holding_term=HoldingTerm.LONG_TERM,
+                ),
+            ],
+            "lot-2": [
+                ExpenseResult(
+                    sell_date=date(2025, 3, 31),
+                    days_held=Decimal("31"), days_in_month=Decimal("31"),
+                    shares=Decimal("50"), total_btc_sold=Decimal("0.00001"),
+                    cost_basis_of_sold=Decimal("0.25"), total_expense=Decimal("0.50"),
+                    gain_loss=Decimal("0.25"), adj_btc=Decimal("0.049"),
+                    adj_basis=Decimal("2499.75"),
+                    holding_term=HoldingTerm.LONG_TERM,
+                ),
+            ],
+        },
+        dispositions=[],
+        end_states={},
+        total_investment_expense=Decimal("1.50"),
+        total_reportable_gain=Decimal("0.75"),
+        total_cost_basis_of_expense=Decimal("0.75"),
+    )
+    export_year_csv(yr, tmp_path)
+    with open(tmp_path / "2025_summary.csv", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    assert rows[0]["holding_term"] == "long_term"
+    assert rows[1]["holding_term"] == ""  # total row is blank
+
+
+def test_summary_csv_holding_term_mixed(tmp_path):
+    """Summary row is short_term when any lot for that date is short_term."""
+    yr = YearResult(
+        year=2025,
+        lot_results={
+            "lot-1": [
+                ExpenseResult(
+                    sell_date=date(2025, 3, 31),
+                    days_held=Decimal("31"), days_in_month=Decimal("31"),
+                    shares=Decimal("100"), total_btc_sold=Decimal("0.00001"),
+                    cost_basis_of_sold=Decimal("0.50"), total_expense=Decimal("1.00"),
+                    gain_loss=Decimal("0.50"), adj_btc=Decimal("0.099"),
+                    adj_basis=Decimal("4999.50"),
+                    holding_term=HoldingTerm.LONG_TERM,
+                ),
+            ],
+            "lot-2": [
+                ExpenseResult(
+                    sell_date=date(2025, 3, 31),
+                    days_held=Decimal("31"), days_in_month=Decimal("31"),
+                    shares=Decimal("50"), total_btc_sold=Decimal("0.00001"),
+                    cost_basis_of_sold=Decimal("0.25"), total_expense=Decimal("0.50"),
+                    gain_loss=Decimal("0.25"), adj_btc=Decimal("0.049"),
+                    adj_basis=Decimal("2499.75"),
+                    holding_term=HoldingTerm.SHORT_TERM,
+                ),
+            ],
+        },
+        dispositions=[],
+        end_states={},
+        total_investment_expense=Decimal("1.50"),
+        total_reportable_gain=Decimal("0.75"),
+        total_cost_basis_of_expense=Decimal("0.75"),
+    )
+    export_year_csv(yr, tmp_path)
+    with open(tmp_path / "2025_summary.csv", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    assert rows[0]["holding_term"] == "short_term"

@@ -8,7 +8,7 @@ from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
-from fbtc_taxgrinder.models import YearResult
+from fbtc_taxgrinder.models import HoldingTerm, YearResult
 
 CENTS = Decimal("0.01")
 
@@ -35,6 +35,7 @@ def export_year_csv(year_result: YearResult, output_dir: Path) -> None:
                 "gain_loss",
                 "adj_btc",
                 "adj_basis",
+                "holding_term",
             ]
         )
         for lot_id, results in sorted(year_result.lot_results.items()):
@@ -52,6 +53,7 @@ def export_year_csv(year_result: YearResult, output_dir: Path) -> None:
                         er.gain_loss,
                         er.adj_btc,
                         er.adj_basis,
+                        er.holding_term.value,
                     ]
                 )
 
@@ -93,11 +95,14 @@ def export_year_csv(year_result: YearResult, output_dir: Path) -> None:
             "reportable_gain": Decimal("0"),
         }
     )
+    date_holding: dict[date, bool] = defaultdict(lambda: True)  # all_long_term
     for results in year_result.lot_results.values():
         for er in results:
             date_agg[er.sell_date]["investment_expense"] += er.total_expense
             date_agg[er.sell_date]["cost_basis_of_expense"] += er.cost_basis_of_sold
             date_agg[er.sell_date]["reportable_gain"] += er.gain_loss
+            if er.holding_term != HoldingTerm.LONG_TERM:
+                date_holding[er.sell_date] = False
 
     summary_path = output_dir / f"{year}_summary.csv"
     with open(summary_path, "w", newline="", encoding="utf-8") as f:
@@ -108,16 +113,22 @@ def export_year_csv(year_result: YearResult, output_dir: Path) -> None:
                 "investment_expense",
                 "cost_basis_of_expense",
                 "reportable_gain",
+                "holding_term",
             ]
         )
         for sell_date in sorted(date_agg):
             agg = date_agg[sell_date]
+            holding = (
+                HoldingTerm.LONG_TERM if date_holding[sell_date]
+                else HoldingTerm.SHORT_TERM
+            )
             writer.writerow(
                 [
                     sell_date.isoformat(),
                     agg["investment_expense"].quantize(CENTS, ROUND_HALF_UP),
                     agg["cost_basis_of_expense"].quantize(CENTS, ROUND_HALF_UP),
                     agg["reportable_gain"].quantize(CENTS, ROUND_HALF_UP),
+                    holding.value,
                 ]
             )
         writer.writerow(
@@ -126,5 +137,6 @@ def export_year_csv(year_result: YearResult, output_dir: Path) -> None:
                 year_result.total_investment_expense.quantize(CENTS, ROUND_HALF_UP),
                 year_result.total_cost_basis_of_expense.quantize(CENTS, ROUND_HALF_UP),
                 year_result.total_reportable_gain.quantize(CENTS, ROUND_HALF_UP),
+                "",
             ]
         )
