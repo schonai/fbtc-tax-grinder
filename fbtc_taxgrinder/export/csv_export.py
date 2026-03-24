@@ -119,7 +119,8 @@ def export_year_csv(year_result: YearResult, output_dir: Path) -> None:
         for sell_date in sorted(date_agg):
             agg = date_agg[sell_date]
             holding = (
-                HoldingTerm.LONG_TERM if date_holding[sell_date]
+                HoldingTerm.LONG_TERM
+                if date_holding[sell_date]
                 else HoldingTerm.SHORT_TERM
             )
             writer.writerow(

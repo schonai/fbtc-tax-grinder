@@ -13,7 +13,6 @@ from fbtc_taxgrinder.models import (
 )
 from fbtc_taxgrinder.engine.compute import compute_year
 
-
 # 2024 monthly proceeds (Aug-Dec only, Jan-Jul had zero sales)
 PROCEEDS_2024 = YearProceeds(
     daily={

@@ -12,7 +12,14 @@ from fbtc_taxgrinder.engine.compute import (
     compute_period,
     compute_year,
 )
-from fbtc_taxgrinder.models import Lot, LotEvent, LotState, MonthProceeds, YearProceeds, HoldingTerm
+from fbtc_taxgrinder.models import (
+    Lot,
+    LotEvent,
+    LotState,
+    MonthProceeds,
+    YearProceeds,
+    HoldingTerm,
+)
 
 
 def test_compute_period_full_month():
@@ -620,9 +627,13 @@ def test_holding_term_short_term():
     )
     result = compute_lot_month(
         LotMonthInput(
-            lot=lot, year=2025, month=1,
-            adj_btc=Decimal("0.1"), adj_basis=Decimal("5000.00"),
-            shares=Decimal("100"), month_proceeds=mp,
+            lot=lot,
+            year=2025,
+            month=1,
+            adj_btc=Decimal("0.1"),
+            adj_basis=Decimal("5000.00"),
+            shares=Decimal("100"),
+            month_proceeds=mp,
         )
     )
     assert result is not None
@@ -647,9 +658,13 @@ def test_holding_term_long_term():
     )
     result = compute_lot_month(
         LotMonthInput(
-            lot=lot, year=2025, month=3,
-            adj_btc=Decimal("0.1"), adj_basis=Decimal("5000.00"),
-            shares=Decimal("100"), month_proceeds=mp,
+            lot=lot,
+            year=2025,
+            month=3,
+            adj_btc=Decimal("0.1"),
+            adj_basis=Decimal("5000.00"),
+            shares=Decimal("100"),
+            month_proceeds=mp,
         )
     )
     assert result is not None
@@ -675,9 +690,13 @@ def test_holding_term_exactly_one_year_is_short_term():
     )
     result = compute_lot_month(
         LotMonthInput(
-            lot=lot, year=2025, month=1,
-            adj_btc=Decimal("0.1"), adj_basis=Decimal("5000.00"),
-            shares=Decimal("100"), month_proceeds=mp,
+            lot=lot,
+            year=2025,
+            month=1,
+            adj_btc=Decimal("0.1"),
+            adj_basis=Decimal("5000.00"),
+            shares=Decimal("100"),
+            month_proceeds=mp,
         )
     )
     assert result is not None
@@ -704,9 +723,13 @@ def test_holding_term_feb29_leap_year():
     # Feb 2025 (month_end = Feb 28): anniversary is Feb 28, 2/28 > 2/28 is False -> SHORT
     result_feb = compute_lot_month(
         LotMonthInput(
-            lot=lot, year=2025, month=2,
-            adj_btc=Decimal("0.1"), adj_basis=Decimal("5000.00"),
-            shares=Decimal("100"), month_proceeds=mp,
+            lot=lot,
+            year=2025,
+            month=2,
+            adj_btc=Decimal("0.1"),
+            adj_basis=Decimal("5000.00"),
+            shares=Decimal("100"),
+            month_proceeds=mp,
         )
     )
     assert result_feb is not None
@@ -715,9 +738,13 @@ def test_holding_term_feb29_leap_year():
     # March 2025 (month_end = Mar 31): 3/31 > 2/28 is True -> LONG
     result_mar = compute_lot_month(
         LotMonthInput(
-            lot=lot, year=2025, month=3,
-            adj_btc=Decimal("0.1"), adj_basis=Decimal("5000.00"),
-            shares=Decimal("100"), month_proceeds=mp,
+            lot=lot,
+            year=2025,
+            month=3,
+            adj_btc=Decimal("0.1"),
+            adj_basis=Decimal("5000.00"),
+            shares=Decimal("100"),
+            month_proceeds=mp,
         )
     )
     assert result_mar is not None
@@ -755,7 +782,8 @@ def test_holding_term_transitions_mid_year():
         proceeds=proceeds,
         prior_state={
             "lot-1": LotState(
-                adj_btc=Decimal("0.1"), adj_basis=Decimal("5000.00"),
+                adj_btc=Decimal("0.1"),
+                adj_basis=Decimal("5000.00"),
                 shares=Decimal("100"),
             ),
         },
