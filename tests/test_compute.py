@@ -12,7 +12,7 @@ from fbtc_taxgrinder.engine.compute import (
     compute_period,
     compute_year,
 )
-from fbtc_taxgrinder.models import Lot, LotEvent, LotState, MonthProceeds, YearProceeds
+from fbtc_taxgrinder.models import Lot, LotEvent, LotState, MonthProceeds, YearProceeds, HoldingTerm
 
 
 def test_compute_period_full_month():
@@ -600,3 +600,174 @@ def test_compute_year_prior_state_lot_missing():
             prior_state=prior,
             year=2025,
         )
+
+
+def test_holding_term_short_term():
+    """Lot held < 1 year: purchase 2024-03-15, month-end 2025-01-31 -> SHORT_TERM."""
+    lot = Lot(
+        id="lot-1",
+        purchase_date=date(2024, 3, 15),
+        original_shares=Decimal("100"),
+        price_per_share=Decimal("50.00"),
+        total_cost=Decimal("5000.00"),
+        btc_per_share_on_purchase=Decimal("0.001"),
+        source_file="test.csv",
+        events=[],
+    )
+    mp = MonthProceeds(
+        btc_sold_per_share=Decimal("0.00000018"),
+        proceeds_per_share_usd=Decimal("0.01070327"),
+    )
+    result = compute_lot_month(
+        LotMonthInput(
+            lot=lot, year=2025, month=1,
+            adj_btc=Decimal("0.1"), adj_basis=Decimal("5000.00"),
+            shares=Decimal("100"), month_proceeds=mp,
+        )
+    )
+    assert result is not None
+    assert result.month_result.holding_term == HoldingTerm.SHORT_TERM
+
+
+def test_holding_term_long_term():
+    """Lot held > 1 year: purchase 2024-01-15, month-end 2025-03-31 -> LONG_TERM."""
+    lot = Lot(
+        id="lot-1",
+        purchase_date=date(2024, 1, 15),
+        original_shares=Decimal("100"),
+        price_per_share=Decimal("50.00"),
+        total_cost=Decimal("5000.00"),
+        btc_per_share_on_purchase=Decimal("0.001"),
+        source_file="test.csv",
+        events=[],
+    )
+    mp = MonthProceeds(
+        btc_sold_per_share=Decimal("0.00000018"),
+        proceeds_per_share_usd=Decimal("0.01070327"),
+    )
+    result = compute_lot_month(
+        LotMonthInput(
+            lot=lot, year=2025, month=3,
+            adj_btc=Decimal("0.1"), adj_basis=Decimal("5000.00"),
+            shares=Decimal("100"), month_proceeds=mp,
+        )
+    )
+    assert result is not None
+    assert result.month_result.holding_term == HoldingTerm.LONG_TERM
+
+
+def test_holding_term_exactly_one_year_is_short_term():
+    """Lot held exactly 1 year: purchase 2024-01-31, month-end 2025-01-31 -> SHORT_TERM.
+    IRS rule: must be MORE than 1 year."""
+    lot = Lot(
+        id="lot-1",
+        purchase_date=date(2024, 1, 31),
+        original_shares=Decimal("100"),
+        price_per_share=Decimal("50.00"),
+        total_cost=Decimal("5000.00"),
+        btc_per_share_on_purchase=Decimal("0.001"),
+        source_file="test.csv",
+        events=[],
+    )
+    mp = MonthProceeds(
+        btc_sold_per_share=Decimal("0.00000018"),
+        proceeds_per_share_usd=Decimal("0.01070327"),
+    )
+    result = compute_lot_month(
+        LotMonthInput(
+            lot=lot, year=2025, month=1,
+            adj_btc=Decimal("0.1"), adj_basis=Decimal("5000.00"),
+            shares=Decimal("100"), month_proceeds=mp,
+        )
+    )
+    assert result is not None
+    assert result.month_result.holding_term == HoldingTerm.SHORT_TERM
+
+
+def test_holding_term_feb29_leap_year():
+    """Lot purchased Feb 29 (leap year): anniversary is Feb 28 next year,
+    so long-term starts March 1."""
+    lot = Lot(
+        id="lot-1",
+        purchase_date=date(2024, 2, 29),
+        original_shares=Decimal("100"),
+        price_per_share=Decimal("50.00"),
+        total_cost=Decimal("5000.00"),
+        btc_per_share_on_purchase=Decimal("0.001"),
+        source_file="test.csv",
+        events=[],
+    )
+    mp = MonthProceeds(
+        btc_sold_per_share=Decimal("0.00000018"),
+        proceeds_per_share_usd=Decimal("0.01070327"),
+    )
+    # Feb 2025 (month_end = Feb 28): anniversary is Feb 28, 2/28 > 2/28 is False -> SHORT
+    result_feb = compute_lot_month(
+        LotMonthInput(
+            lot=lot, year=2025, month=2,
+            adj_btc=Decimal("0.1"), adj_basis=Decimal("5000.00"),
+            shares=Decimal("100"), month_proceeds=mp,
+        )
+    )
+    assert result_feb is not None
+    assert result_feb.month_result.holding_term == HoldingTerm.SHORT_TERM
+
+    # March 2025 (month_end = Mar 31): 3/31 > 2/28 is True -> LONG
+    result_mar = compute_lot_month(
+        LotMonthInput(
+            lot=lot, year=2025, month=3,
+            adj_btc=Decimal("0.1"), adj_basis=Decimal("5000.00"),
+            shares=Decimal("100"), month_proceeds=mp,
+        )
+    )
+    assert result_mar is not None
+    assert result_mar.month_result.holding_term == HoldingTerm.LONG_TERM
+
+
+def test_holding_term_transitions_mid_year():
+    """Lot purchased 2024-06-15: short-term through June 2025, long-term from July 2025."""
+    lot = Lot(
+        id="lot-1",
+        purchase_date=date(2024, 6, 15),
+        original_shares=Decimal("100"),
+        price_per_share=Decimal("50.00"),
+        total_cost=Decimal("5000.00"),
+        btc_per_share_on_purchase=Decimal("0.001"),
+        source_file="test.csv",
+        events=[],
+    )
+    proceeds = YearProceeds(
+        daily={},
+        monthly={
+            date(2025, 6, 30): MonthProceeds(
+                btc_sold_per_share=Decimal("0.00000018"),
+                proceeds_per_share_usd=Decimal("0.01"),
+            ),
+            date(2025, 7, 31): MonthProceeds(
+                btc_sold_per_share=Decimal("0.00000018"),
+                proceeds_per_share_usd=Decimal("0.01"),
+            ),
+        },
+        source="test",
+    )
+    result = compute_year(
+        lots=[lot],
+        proceeds=proceeds,
+        prior_state={
+            "lot-1": LotState(
+                adj_btc=Decimal("0.1"), adj_basis=Decimal("5000.00"),
+                shares=Decimal("100"),
+            ),
+        },
+        year=2025,
+    )
+    june_results = [
+        r for r in result.lot_results["lot-1"] if r.sell_date == date(2025, 6, 30)
+    ]
+    july_results = [
+        r for r in result.lot_results["lot-1"] if r.sell_date == date(2025, 7, 31)
+    ]
+    assert len(june_results) == 1
+    assert june_results[0].holding_term == HoldingTerm.SHORT_TERM
+    assert len(july_results) == 1
+    assert july_results[0].holding_term == HoldingTerm.LONG_TERM

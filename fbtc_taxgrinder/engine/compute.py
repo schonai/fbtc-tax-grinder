@@ -10,6 +10,7 @@ from enum import Enum
 
 from fbtc_taxgrinder.models import (
     Disposition,
+    HoldingTerm,
     Lot,
     LotEvent,
     LotState,
@@ -305,6 +306,18 @@ def _month_start(year: int, month: int) -> date:
     return date(year, month, 1)
 
 
+def _holding_term(purchase_date: date, sell_date: date) -> HoldingTerm:
+    """Classify as LONG_TERM if held more than one year per IRS rules."""
+    try:
+        anniversary = purchase_date.replace(year=purchase_date.year + 1)
+    except ValueError:
+        # Feb 29 -> Feb 28; long-term starts March 1
+        anniversary = purchase_date.replace(year=purchase_date.year + 1, day=28)
+    if sell_date > anniversary:
+        return HoldingTerm.LONG_TERM
+    return HoldingTerm.SHORT_TERM
+
+
 def compute_lot_month(
     inp: LotMonthInput, *, holding_mode: HoldingMode = HoldingMode.FULL_MONTH
 ) -> LotMonthOutput | None:
@@ -321,6 +334,8 @@ def compute_lot_month(
     # Check if lot is active this month
     if inp.lot.purchase_date > month_end:
         return None
+
+    holding_term = _holding_term(inp.lot.purchase_date, month_end)
 
     # Determine base days_held for the full month
     if inp.lot.purchase_date >= month_start_date:
@@ -372,6 +387,7 @@ def compute_lot_month(
                 gain_loss=pr.gain_loss,
                 adj_btc=pr.adj_btc,
                 adj_basis=pr.adj_basis,
+                holding_term=holding_term,
             ),
             dispositions=[],
             new_state=LotState(
@@ -413,6 +429,7 @@ def compute_lot_month(
             gain_loss=result.total_gain_loss,
             adj_btc=result.adj_btc,
             adj_basis=result.adj_basis,
+            holding_term=holding_term,
         ),
         dispositions=result.dispositions,
         new_state=LotState(
