@@ -18,7 +18,7 @@ FBTC is structured as a grantor trust, which means shareholders are taxed direct
 ## Quick start
 
 ```bash
-pip3 install -e ".[dev]"
+pip install fbtc-taxgrinder
 
 fbtc-taxgrinder --project ./my-taxes import-proceeds --url <fidelity-whfit-pdf-url>
 fbtc-taxgrinder --project ./my-taxes import-trades --file etrade-trades.csv
@@ -33,9 +33,17 @@ Output lands in `./my-taxes/output/` as three CSVs (monthly breakdown, dispositi
 Requires Python 3.12+.
 
 ```bash
+pip install fbtc-taxgrinder
+```
+
+For development:
+
+```bash
+git clone https://github.com/schonai/fbtc-tax-grinder.git
+cd fbtc-tax-grinder
 python3 -m venv venv
 source venv/bin/activate
-pip3 install -e ".[dev]"
+pip install -e ".[dev]"
 ```
 
 ## Usage
