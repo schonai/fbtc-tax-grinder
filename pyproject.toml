@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fbtc-taxgrinder"
-version = "0.1.0"
+version = "1.0.0"
 description = "IRS-reportable WHFIT tax lot calculator for Fidelity Bitcoin Fund (FBTC) shareholders"
 readme = "README.md"
 license = "MIT"
