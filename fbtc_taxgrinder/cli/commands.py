@@ -117,7 +117,7 @@ def import_trades(ctx: click.Context, file_path: str) -> None:
 
     next_id = len(existing_lots) + 1
     new_lots = 0
-    source_name = Path(file_path).name
+    source_name = Path(file_path).resolve().as_uri()
 
     for buy in parsed.buys:
         key = (buy.date, buy.shares, buy.price_per_share)

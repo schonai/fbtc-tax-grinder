@@ -119,8 +119,8 @@ def parse_fidelity_pdf_file(file_path: str | Path) -> YearProceeds:
     with pdfplumber.open(file_path) as pdf:
         daily, monthly = parse_proceeds_pdf(pdf)
 
-    source_name = Path(file_path).name
-    return YearProceeds(daily=daily, monthly=monthly, source=source_name)
+    source_uri = Path(file_path).resolve().as_uri()
+    return YearProceeds(daily=daily, monthly=monthly, source=source_uri)
 
 
 def parse_fidelity_pdf_url(url: str) -> YearProceeds:
@@ -141,13 +141,10 @@ def parse_fidelity_pdf_url(url: str) -> YearProceeds:
         resp.raise_for_status()
         Path(tmp_path).write_bytes(resp.content)
         result = parse_fidelity_pdf_file(tmp_path)
-        # Override source to use the URL filename
-        source_name = url.split("/")[-1] if "/" in url else url
-        result = YearProceeds(
+        return YearProceeds(
             daily=result.daily,
             monthly=result.monthly,
-            source=source_name,
+            source=url,
         )
-        return result
     finally:
         Path(tmp_path).unlink(missing_ok=True)

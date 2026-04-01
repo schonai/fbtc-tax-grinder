@@ -2,6 +2,7 @@
 
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 from fbtc_taxgrinder.parsers.fidelity_pdf import (
     parse_proceeds_line,
@@ -103,7 +104,7 @@ def test_parse_fidelity_pdf_file():
         mock_plumber.open.return_value = mock_pdf
         result = parse_fidelity_pdf_file("/tmp/test.pdf")
 
-    assert result.source == "test.pdf"
+    assert result.source == Path("/tmp/test.pdf").resolve().as_uri()
     assert date(2024, 1, 11) in result.daily
 
 
@@ -128,5 +129,5 @@ def test_parse_fidelity_pdf_url():
         mock_plumber.open.return_value = mock_pdf
         result = parse_fidelity_pdf_url("https://example.com/test.pdf")
 
-    assert result.source == "test.pdf"
+    assert result.source == "https://example.com/test.pdf"
     assert date(2024, 1, 11) in result.daily
