@@ -7,7 +7,7 @@ import json
 from datetime import date
 from decimal import Decimal
 from enum import Enum
-from typing import get_args, get_origin, get_type_hints
+from typing import Any, get_args, get_origin, get_type_hints
 
 
 def encode(obj: object) -> str:
@@ -15,7 +15,7 @@ def encode(obj: object) -> str:
     return json.dumps(_prepare(obj), indent=2)
 
 
-def decode(cls: type, text: str) -> object:
+def decode(cls: type, text: str) -> Any:
     """Deserialize a JSON string into the given type."""
     return _reconstruct(cls, json.loads(text))
 
@@ -37,7 +37,7 @@ def _prepare(obj: object) -> object:
     return obj
 
 
-def _reconstruct(cls: type, data: object) -> object:
+def _reconstruct(cls: type, data: Any) -> Any:
     """Reconstruct a typed Python object from parsed JSON."""
     if data is None:
         return None

@@ -16,7 +16,7 @@ import requests
 from fbtc_taxgrinder.models import MonthProceeds, YearProceeds
 
 if TYPE_CHECKING:
-    from pdfplumber import PDF
+    from pdfplumber.pdf import PDF
 
 
 @dataclass
@@ -95,7 +95,10 @@ def parse_proceeds_pdf(
             if parsed is None:
                 continue
             daily[parsed.date] = parsed.btc_per_share
-            if parsed.btc_sold_per_share is not None:
+            if (
+                parsed.btc_sold_per_share is not None
+                and parsed.proceeds_per_share_usd is not None
+            ):
                 monthly[parsed.date] = MonthProceeds(
                     btc_sold_per_share=parsed.btc_sold_per_share,
                     proceeds_per_share_usd=parsed.proceeds_per_share_usd,

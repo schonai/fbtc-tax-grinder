@@ -32,6 +32,7 @@ def test_first_month_full_by_default():
             ),
         )
     )
+    assert result is not None
     assert result.month_result.days_held == Decimal("31")
     assert result.month_result.days_in_month == Decimal("31")
 
@@ -62,6 +63,7 @@ def test_first_month_proration():
         ),
         holding_mode=HoldingMode.PRORATE,
     )
+    assert result is not None
     assert result.month_result.days_held == Decimal("12")
     assert result.month_result.days_in_month == Decimal("31")
 
@@ -91,6 +93,7 @@ def test_full_month_after_purchase():
             ),
         )
     )
+    assert result is not None
     assert result.month_result.days_held == Decimal("30")
 
 

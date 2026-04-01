@@ -651,6 +651,7 @@ def test_prorate_sell_month_phases():
             ),
         )
     )
+    assert full_result is not None
     assert result.month_result.total_expense > full_result.month_result.total_expense
 
 

@@ -72,6 +72,7 @@ def import_proceeds(ctx: click.Context, url: str | None, file_path: str | None) 
         click.echo(f"Parsing proceeds from {url}...")
         yp = parse_fidelity_pdf_url(url)
     else:
+        assert file_path is not None
         click.echo(f"Parsing proceeds from {file_path}...")
         yp = parse_fidelity_pdf_file(file_path)
 
