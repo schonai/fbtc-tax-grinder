@@ -5,7 +5,24 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "fbtc-taxgrinder"
 version = "0.1.0"
+description = "IRS-reportable WHFIT tax lot calculator for Fidelity Bitcoin Fund (FBTC) shareholders"
+readme = "README.md"
+license = "MIT"
 requires-python = ">=3.12"
+authors = [
+    { name = "Mickaël Germain", email = "germain.mickael@gmail.com" },
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+    "Topic :: Office/Business :: Financial :: Accounting",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
 dependencies = [
     "click>=8.0",
     "pdfplumber>=0.10",
@@ -18,5 +35,12 @@ fbtc-taxgrinder = "fbtc_taxgrinder.cli.commands:cli"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
+[project.urls]
+Homepage = "https://github.com/schonai/fbtc-tax-grinder"
+Issues = "https://github.com/schonai/fbtc-tax-grinder/issues"
+
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "pytest-cov>=4.0"]
+
+[tool.setuptools.packages.find]
+include = ["fbtc_taxgrinder*"]

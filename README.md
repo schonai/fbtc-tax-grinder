@@ -1,6 +1,11 @@
 # FBTC Tax Grinder
 
 [![CI](https://github.com/schonai/fbtc-tax-grinder/actions/workflows/ci.yml/badge.svg)](https://github.com/schonai/fbtc-tax-grinder/actions/workflows/ci.yml)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/release/python-3130/)
+[![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/downloads/release/python-3140/)
+[![PyPI](https://img.shields.io/pypi/v/fbtc-taxgrinder)](https://pypi.org/project/fbtc-taxgrinder/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 Python CLI to compute WHFIT tax lots and gain/loss for Fidelity Bitcoin Fund (FBTC) shareholders.
 
