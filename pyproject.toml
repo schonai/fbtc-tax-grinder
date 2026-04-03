@@ -8,6 +8,7 @@ version = "1.0.2"
 description = "IRS-reportable WHFIT tax lot calculator for Fidelity Bitcoin Fund (FBTC) shareholders"
 readme = "README.md"
 license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 authors = [
     { name = "Mickaël Germain", email = "germain.mickael@gmail.com" },
